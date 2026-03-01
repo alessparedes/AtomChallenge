@@ -1,31 +1,28 @@
-import { Component, signal, OnInit, inject } from '@angular/core';
+import { Component, signal, OnInit, inject, HostListener, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { CdkDragEnd, DragDropModule } from '@angular/cdk/drag-drop';
 import { FlowService } from '../../core/services/flow.service';
 import { AgentFlow, NodeEntity, EdgeEntity } from '../../core/models/flow.model';
-import { XYFlowModule } from 'ngx-xyflow';
-
-export type NodeType = 'trigger' | 'memory' | 'orchestrator' | 'validator' | 'specialist' | 'tool';
 
 export interface FlowNode {
   id: string;
-  type?: string;
+  type: string;
   position: { x: number; y: number };
   data: any;
 }
 
 export interface FlowEdge {
-  id: string;
+  id?: string;
   source: string;
   target: string;
-  type?: string;
 }
 
 @Component({
   selector: 'app-editor',
   standalone: true,
-  imports: [CommonModule, RouterLink, FormsModule, XYFlowModule],
+  imports: [CommonModule, RouterLink, FormsModule, DragDropModule],
   templateUrl: './editor.html',
   styleUrl: './editor.scss'
 })
@@ -35,17 +32,18 @@ export class Editor implements OnInit {
 
   // UI State
   flowId = signal<string | null>(null);
+  flowName = computed(() => this.flowService.currentFlow()?.name || 'Editor de flujo');
   isSaving = signal<boolean>(false);
   lastSaved = signal<Date | null>(new Date());
 
   // Node Types Catalog (Toolbox)
   nodeTypes = [
-    { type: 'trigger', label: 'Trigger', icon: 'zap', color: 'bg-blue-500', desc: 'Inicia el flujo' },
+    { type: 'input', label: 'Input', icon: 'zap', color: 'bg-blue-500', desc: 'Inicia el flujo' },
     { type: 'memory', label: 'Memoria', icon: 'database', color: 'bg-purple-500', desc: 'Contexto de sesión' },
     { type: 'orchestrator', label: 'Orquestador', icon: 'git-branch', color: 'bg-rose-500', desc: 'Ruta e intención' },
     { type: 'validator', label: 'Validador', icon: 'check-square', color: 'bg-amber-500', desc: 'Reglas de negocio' },
     { type: 'specialist', label: 'Especialista', icon: 'bot', color: 'bg-emerald-500', desc: 'Agente LLM' },
-    { type: 'tool', label: 'Tool / JSON', icon: 'code', color: 'bg-teal-500', desc: 'Llamada externa' }
+    { type: 'tool', label: 'Tool / External', icon: 'code', color: 'bg-teal-500', desc: 'Llamada externa' }
   ];
 
   // Canvas State
@@ -69,8 +67,8 @@ export class Editor implements OnInit {
               type: typeof n.nodeType === 'string' ? n.nodeType : (n.nodeType?.typeCode || 'specialist'),
               position: { x: n.positionX, y: n.positionY },
               data: {
-                title: n.config?.title || 'Node',
-                subtitle: n.config?.subtitle || '',
+                label: n.config?.label || 'Node',
+                description: n.config?.description || '',
                 config: n.config
               }
             }));
@@ -85,15 +83,43 @@ export class Editor implements OnInit {
     }
   }
 
-  // Native HTML5 Drag & Drop
-  onDragStart(event: DragEvent, nodeType: any) {
+  // Edge drawing
+  drawingEdge = signal<{ sourceNodeId: string, currentX: number, currentY: number } | null>(null);
+
+  getEdgePath(edge: FlowEdge): string {
+    const sourceNode = this.nodes().find(n => n.id === edge.source);
+    const targetNode = this.nodes().find(n => n.id === edge.target);
+    if (!sourceNode || !targetNode) return '';
+    const startX = sourceNode.position.x + 224; // Node width
+    const startY = sourceNode.position.y + 45;  // Handle Y
+    const endX = targetNode.position.x;
+    const endY = targetNode.position.y + 45;
+    const controlPointX = (startX + endX) / 2;
+    return `M ${startX} ${startY} C ${controlPointX} ${startY}, ${controlPointX} ${endY}, ${endX} ${endY}`;
+  }
+
+  getDrawingPath(): string {
+    const drawing = this.drawingEdge();
+    if (!drawing) return '';
+    const sourceNode = this.nodes().find(n => n.id === drawing.sourceNodeId);
+    if (!sourceNode) return '';
+    const startX = sourceNode.position.x + 224;
+    const startY = sourceNode.position.y + 45;
+    const endX = drawing.currentX;
+    const endY = drawing.currentY;
+    const controlPointX = (startX + endX) / 2;
+    return `M ${startX} ${startY} C ${controlPointX} ${startY}, ${controlPointX} ${endY}, ${endX} ${endY}`;
+  }
+
+  // Handle Drag from ToolBox
+  onDragStartToolbox(event: DragEvent, nodeType: any) {
     if (event.dataTransfer) {
-      event.dataTransfer.setData('application/xyflow', JSON.stringify(nodeType));
+      event.dataTransfer.setData('application/node', JSON.stringify(nodeType));
       event.dataTransfer.effectAllowed = 'move';
     }
   }
 
-  onDragOver(event: DragEvent) {
+  onDragOverCanvas(event: DragEvent) {
     event.preventDefault();
     if (event.dataTransfer) {
       event.dataTransfer.dropEffect = 'move';
@@ -103,12 +129,10 @@ export class Editor implements OnInit {
   onDropCanvas(event: DragEvent) {
     event.preventDefault();
     if (!event.dataTransfer) return;
-    const nodeTypeStr = event.dataTransfer.getData('application/xyflow');
+    const nodeTypeStr = event.dataTransfer.getData('application/node');
     if (!nodeTypeStr) return;
 
     const nodeType = JSON.parse(nodeTypeStr);
-
-    // Use currentTarget to guarantee we are measuring the Canvas container, not internal SVGs
     const target = event.currentTarget as HTMLElement;
     const bounds = target.getBoundingClientRect();
 
@@ -117,13 +141,17 @@ export class Editor implements OnInit {
       y: event.clientY - bounds.top
     };
 
+    // Generate semantic ID like 'node_input_1'
+    const typeCount = this.nodes().filter(n => n.type === nodeType.type).length + 1;
+    const newId = `node_${nodeType.type}_${typeCount}`;
+
     const newNode: FlowNode = {
-      id: 'node-' + Date.now(),
+      id: newId,
       type: nodeType.type,
       position,
       data: {
-        title: 'Nuevo ' + nodeType.label,
-        subtitle: '',
+        label: 'Nuevo ' + nodeType.label,
+        description: '',
         ...nodeType
       }
     };
@@ -132,30 +160,73 @@ export class Editor implements OnInit {
     this.selectNode(newNode);
   }
 
+  // Handle Free Drag within Canvas
+  onNodeDragEnd(event: CdkDragEnd, node: FlowNode) {
+    const position = event.source.getFreeDragPosition();
+    this.nodes.update(ns => ns.map(n => n.id === node.id ? { ...n, position } : n));
+  }
+
   // Node Selection
   selectNode(node: FlowNode | null) {
     this.selectedNode.set(node);
   }
 
-  onNodeClick(event: any, node: any) {
-    // Handling ngx-xyflow event pattern
-    this.selectNode(node);
-  }
-
-  onPaneClick() {
-    this.selectNode(null);
-  }
-
   // Handle Edges Connections
-  onConnect(connection: any) {
-    const newEdge: FlowEdge = {
-      id: `e-${connection.source}-${connection.target}`,
-      source: connection.source,
-      target: connection.target,
-      type: 'default' // Add standard edge type or keep plain
-    };
+  startConnection(event: MouseEvent, node: FlowNode) {
+    event.stopPropagation();
+    const canvas = document.querySelector('.CanvasArea') as HTMLElement;
+    if (!canvas) return;
+    const bounds = canvas.getBoundingClientRect();
+    this.drawingEdge.set({
+      sourceNodeId: node.id,
+      currentX: event.clientX - bounds.left,
+      currentY: event.clientY - bounds.top
+    });
+  }
 
-    this.edges.update(eds => [...eds, newEdge]);
+  @HostListener('mousemove', ['$event'])
+  onMouseMove(event: MouseEvent) {
+    const drawing = this.drawingEdge();
+    if (drawing) {
+      const canvas = document.querySelector('.CanvasArea') as HTMLElement;
+      if (!canvas) return;
+      const bounds = canvas.getBoundingClientRect();
+      this.drawingEdge.set({
+        ...drawing,
+        currentX: event.clientX - bounds.left,
+        currentY: event.clientY - bounds.top
+      });
+    }
+  }
+
+  @HostListener('mouseup')
+  onMouseUp() {
+    this.drawingEdge.set(null);
+  }
+
+  endConnection(event: MouseEvent, node: FlowNode) {
+    event.stopPropagation();
+    const drawing = this.drawingEdge();
+    if (drawing && drawing.sourceNodeId !== node.id) {
+      const existing = this.edges().find(e => e.source === drawing.sourceNodeId && e.target === node.id);
+      if (!existing) {
+        const newEdge: FlowEdge = {
+          id: `edge_${Date.now()}`,
+          source: drawing.sourceNodeId,
+          target: node.id
+        };
+        this.edges.update(es => [...es, newEdge]);
+      }
+    }
+    this.drawingEdge.set(null);
+  }
+
+  deleteNode(nodeId: string) {
+    this.nodes.update(ns => ns.filter(n => n.id !== nodeId));
+    this.edges.update(es => es.filter(e => e.source !== nodeId && e.target !== nodeId));
+    if (this.selectedNode()?.id === nodeId) {
+      this.selectedNode.set(null);
+    }
   }
 
   // Properties Update
@@ -180,17 +251,15 @@ export class Editor implements OnInit {
 
     this.isSaving.set(true);
 
-    // Map Canvas nodes to DTO Nodes
     const dbNodes: any[] = this.nodes().map((n: FlowNode) => ({
-      id: n.id.startsWith('node-') ? undefined : n.id, // backend UUID handling if needed
+      id: n.id,
       type: n.type,
       position: {
         x: n.position.x,
         y: n.position.y
       },
       data: {
-        title: n.data.title,
-        subtitle: n.data.subtitle,
+        label: n.data.label,
         ...(n.data.config || {})
       }
     }));
@@ -201,7 +270,9 @@ export class Editor implements OnInit {
       target: e.target
     }));
 
-    this.flowService.updateFlowGraph(currentId, currentFlow.name, dbNodes, dbEdges).subscribe({
+    const isActive = currentFlow.isActive ?? true;
+
+    this.flowService.updateFlowGraph(currentId, currentFlow.name, dbNodes, dbEdges, isActive).subscribe({
       next: () => {
         this.isSaving.set(false);
         this.lastSaved.set(new Date());

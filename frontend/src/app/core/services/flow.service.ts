@@ -38,9 +38,10 @@ export class FlowService {
     }
 
     // Update flow nodes and edges
-    updateFlowGraph(id: string, name: string, nodes: any[], edges: any[]): Observable<AgentFlow> {
+    updateFlowGraph(id: string, name: string, nodes: any[], edges: any[], isActive?: boolean): Observable<AgentFlow> {
         return this.http.patch<AgentFlow>(`${this.apiUrl}/${id}`, {
             name,
+            isActive: isActive ?? true,
             nodes,
             edges
         }).pipe(
