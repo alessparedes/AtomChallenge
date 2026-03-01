@@ -42,8 +42,7 @@ export class Editor implements OnInit, OnDestroy {
     { type: 'memory', label: 'Memoria', icon: 'database', color: 'bg-purple-500', desc: 'Contexto de sesión' },
     { type: 'orchestrator', label: 'Orquestador', icon: 'git-branch', color: 'bg-rose-500', desc: 'Ruta e intención' },
     { type: 'validator', label: 'Validador', icon: 'check-square', color: 'bg-amber-500', desc: 'Reglas de negocio' },
-    { type: 'specialist', label: 'Especialista', icon: 'bot', color: 'bg-emerald-500', desc: 'Agente LLM' },
-    { type: 'tool', label: 'Tool / External', icon: 'code', color: 'bg-teal-500', desc: 'Llamada externa' }
+    { type: 'specialist', label: 'Especialista', icon: 'bot', color: 'bg-emerald-500', desc: 'Agente LLM' }
   ];
 
   toolboxCollapsed = signal<boolean>(false);
@@ -375,7 +374,6 @@ export class Editor implements OnInit, OnDestroy {
         description: n.data.description,
         systemPrompt: n.data.systemPrompt,
         targetVariable: n.data.targetVariable,
-        toolAction: n.data.toolAction,
         validationRegex: n.data.validationRegex,
         tool: n.data.tool,
         ...(n.type === 'validator' ? { fields: Array.isArray(n.data.fields) ? n.data.fields : [] } : {}),

@@ -181,8 +181,7 @@
                             'bg-purple-500': node.type === 'memory',
                             'bg-rose-500': node.type === 'orchestrator',
                             'bg-amber-500': node.type === 'validator',
-                            'bg-emerald-500': node.type === 'specialist',
-                            'bg-teal-500': node.type === 'tool'
+                            'bg-emerald-500': node.type === 'specialist'
                         }"></div>
 
                         <div class="p-4 relative">
@@ -316,13 +315,6 @@
 
                     @if(node.type === 'specialist') {
                     <div>
-                        <label class="block text-sm text-foreground mb-1">Prompt del Sistema</label>
-                        <textarea rows="6" [ngModel]="node.data?.systemPrompt"
-                            (ngModelChange)="updateNodeProperty('systemPrompt', $event)"
-                            class="w-full px-3 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:border-primary transition-colors resize-y"
-                            placeholder="Escribe instrucciones del especialista aquí..."></textarea>
-                    </div>
-                    <div>
                         <label class="block text-sm text-foreground mb-1">Acción / Herramienta</label>
                         <select [ngModel]="node.data?.tool" (ngModelChange)="updateNodeProperty('tool', $event)"
                             class="w-full px-3 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:border-primary transition-colors">
@@ -333,26 +325,7 @@
                     </div>
                     }
 
-                    @if(node.type === 'tool') {
-                    <div>
-                        <label class="block text-sm text-foreground mb-1">Acción (API o Archivo)</label>
-                        <select [ngModel]="node.data?.toolAction"
-                            (ngModelChange)="updateNodeProperty('toolAction', $event)"
-                            class="w-full px-3 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:border-primary transition-colors">
-                            <option value="">Selecciona fuente o función...</option>
-                            <option value="autos.json">autos.json (Catálogo)</option>
-                            <option value="faq.json">faq.json (KB)</option>
-                            <option value="dates.json">dates.json (Agenda)</option>
-                            <option value="api_crm">Consultar CRM Externo</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm text-foreground mb-1">Variable de Destino</label>
-                        <input type="text" placeholder="Ej: resultado_api" [ngModel]="node.data?.targetVariable"
-                            (ngModelChange)="updateNodeProperty('targetVariable', $event)"
-                            class="w-full px-3 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:border-primary transition-colors font-mono">
-                    </div>
-                    }
+
 
                     @if(node.type === 'validator') {
                     <div>
