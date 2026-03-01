@@ -82,8 +82,8 @@
     @if (viewMode() === 'grid') {
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-20">
         @for (flow of filteredFlows(); track flow.id) {
-        <div
-            class="group bg-card border border-border rounded-xl p-5 shadow-sm hover:shadow-md hover:border-primary/50 transition-all duration-300 flex flex-col hover:-translate-y-1">
+        <div (click)="openFlow(flow.id)"
+            class="group bg-card border border-border rounded-xl p-5 shadow-sm hover:shadow-md hover:border-primary/50 transition-all duration-300 flex flex-col hover:-translate-y-1 cursor-pointer">
             <div class="flex justify-between items-start mb-4">
                 <div class="px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5" [ngClass]="{
                 'bg-emerald-500/10 text-emerald-500': flow.status === 'Published',
@@ -96,6 +96,11 @@
                   'bg-rose-500': flow.status === 'Archived'
                 }"></span>
                     {{ flow.status }}
+                </div>
+
+                <div class="px-2.5 py-1 rounded-md border text-[10px] font-bold tracking-widest uppercase transition-colors"
+                    [ngClass]="flow.isActive ? 'border-emerald-500/50 text-emerald-500' : 'border-slate-500/50 text-slate-500'">
+                    {{ flow.isActive ? 'ACTIVE' : 'INACTIVE' }}
                 </div>
             </div>
 
@@ -117,19 +122,9 @@
                 <span>ID: {{ flow.id.slice(0, 8) }}</span>
             </div>
 
-            <div class="flex flex-wrap gap-2 pt-4 border-t border-border mt-auto">
-                <button (click)="openFlow(flow.id)"
-                    class="flex-1 bg-secondary text-secondary-foreground hover:bg-primary hover:text-primary-foreground px-3 py-1.5 rounded-md text-sm font-medium transition-colors flex justify-center items-center gap-1.5">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                        class="lucide lucide-folder-open">
-                        <path
-                            d="m6 14 1.45-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5c0-1.1.9-2 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H18a2 2 0 0 1 2 2v2" />
-                    </svg>
-                    Abrir
-                </button>
-                <button (click)="deployFlow(flow.id)"
-                    class="bg-secondary text-secondary-foreground hover:bg-secondary/80 px-2 py-1.5 rounded-md transition-colors"
+            <div class="flex flex-wrap justify-center gap-3 pt-4 border-t border-border mt-auto">
+                <button (click)="$event.stopPropagation(); deployFlow(flow.id)"
+                    class="bg-secondary text-secondary-foreground hover:bg-secondary/80 px-2.5 py-1.5 rounded-md transition-colors block"
                     title="Desplegar">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -142,8 +137,8 @@
                         <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5" />
                     </svg>
                 </button>
-                <button (click)="duplicateFlow(flow.id)"
-                    class="bg-secondary text-secondary-foreground hover:bg-secondary/80 px-2 py-1.5 rounded-md transition-colors"
+                <button (click)="$event.stopPropagation(); duplicateFlow(flow.id)"
+                    class="bg-secondary text-secondary-foreground hover:bg-secondary/80 px-2.5 py-1.5 rounded-md transition-colors block"
                     title="Duplicar">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -152,8 +147,8 @@
                         <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
                     </svg>
                 </button>
-                <button (click)="renameFlow(flow.id)"
-                    class="bg-secondary text-secondary-foreground hover:bg-secondary/80 px-2 py-1.5 rounded-md transition-colors"
+                <button (click)="$event.stopPropagation(); renameFlow(flow.id)"
+                    class="bg-secondary text-secondary-foreground hover:bg-secondary/80 px-2.5 py-1.5 rounded-md transition-colors block"
                     title="Renombrar">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -162,8 +157,8 @@
                         <path d="m15 5 4 4" />
                     </svg>
                 </button>
-                <button (click)="archiveFlow(flow.id)"
-                    class="bg-destructive/10 text-destructive hover:bg-destructive hover:text-destructive-foreground px-2 py-1.5 rounded-md transition-colors"
+                <button (click)="$event.stopPropagation(); archiveFlow(flow.id)"
+                    class="bg-destructive/10 text-destructive hover:bg-destructive hover:text-destructive-foreground px-2.5 py-1.5 rounded-md transition-colors block"
                     title="Archivar">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -209,12 +204,12 @@
             </thead>
             <tbody class="divide-y divide-border">
                 @for (flow of filteredFlows(); track flow.id) {
-                <tr class="hover:bg-muted/50 transition-colors group">
+                <tr class="hover:bg-muted/50 transition-colors group cursor-pointer" (click)="openFlow(flow.id)">
                     <td class="py-3 px-4">
                         <p class="font-medium text-foreground">{{ flow.name }}</p>
                         <p class="text-xs text-muted-foreground line-clamp-1 max-w-md">{{ flow.description }}</p>
                     </td>
-                    <td class="py-3 px-4">
+                    <td class="py-3 px-4 flex items-center gap-2">
                         <span class="px-2 py-1 rounded-full text-xs font-semibold inline-flex items-center gap-1"
                             [ngClass]="{
                     'bg-emerald-500/10 text-emerald-500': flow.status === 'Published',
@@ -228,6 +223,12 @@
                     }"></span>
                             {{ flow.status }}
                         </span>
+
+                        <span
+                            class="px-2 py-0.5 rounded border text-[10px] font-bold tracking-widest uppercase transition-colors"
+                            [ngClass]="flow.isActive ? 'border-emerald-500/50 text-emerald-500' : 'border-slate-500/50 text-slate-500'">
+                            {{ flow.isActive ? 'ACTIVE' : 'INACTIVE' }}
+                        </span>
                     </td>
                     <td class="py-3 px-4 hidden md:table-cell text-sm text-muted-foreground">
                         {{ flow.createdAt | date:'mediumDate' }}
@@ -235,17 +236,7 @@
                     <td class="py-3 px-4 text-right">
                         <div
                             class="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button (click)="openFlow(flow.id)"
-                                class="p-1.5 bg-primary/10 text-primary hover:bg-primary hover:text-primary-foreground rounded-md transition-colors"
-                                title="Abrir">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
-                                    fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
-                                    stroke-linejoin="round" class="lucide lucide-folder-open">
-                                    <path
-                                        d="m6 14 1.45-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.55 6a2 2 0 0 1-1.94 1.5H4a2 2 0 0 1-2-2V5c0-1.1.9-2 2-2h3.93a2 2 0 0 1 1.66.9l.82 1.2a2 2 0 0 0 1.66.9H18a2 2 0 0 1 2 2v2" />
-                                </svg>
-                            </button>
-                            <button (click)="deployFlow(flow.id)"
+                            <button (click)="$event.stopPropagation(); deployFlow(flow.id)"
                                 class="p-1.5 hover:bg-secondary rounded-md text-foreground transition-colors"
                                 title="Desplegar">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
@@ -259,7 +250,7 @@
                                     <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5" />
                                 </svg>
                             </button>
-                            <button (click)="duplicateFlow(flow.id)"
+                            <button (click)="$event.stopPropagation(); duplicateFlow(flow.id)"
                                 class="p-1.5 hover:bg-secondary rounded-md text-foreground transition-colors"
                                 title="Duplicar">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
@@ -269,7 +260,7 @@
                                     <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
                                 </svg>
                             </button>
-                            <button (click)="renameFlow(flow.id)"
+                            <button (click)="$event.stopPropagation(); renameFlow(flow.id)"
                                 class="p-1.5 hover:bg-secondary rounded-md text-foreground transition-colors"
                                 title="Renombrar">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
@@ -279,7 +270,7 @@
                                     <path d="m15 5 4 4" />
                                 </svg>
                             </button>
-                            <button (click)="archiveFlow(flow.id)"
+                            <button (click)="$event.stopPropagation(); archiveFlow(flow.id)"
                                 class="p-1.5 hover:bg-destructive/10 text-destructive rounded-md transition-colors"
                                 title="Archivar">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"

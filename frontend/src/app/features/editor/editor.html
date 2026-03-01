@@ -79,71 +79,97 @@
     <div class="flex flex-1 w-full h-[calc(100vh-4rem)] overflow-hidden relative">
 
         <!-- Left Sidebar: Toolbox -->
-        <aside class="w-72 bg-card border-r border-border shrink-0 flex flex-col h-full shadow-lg z-10 relative">
-            <div class="p-4 border-b border-border">
-                <h3 class="text-sm font-semibold tracking-wider text-muted-foreground uppercase mb-3">Librería de Nodos
-                </h3>
-                <div class="relative">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-                        class="lucide lucide-search absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground">
-                        <circle cx="11" cy="11" r="8" />
-                        <path d="m21 21-4.3-4.3" />
-                    </svg>
-                    <input type="text" placeholder="Buscar un nodo..."
-                        class="w-full pl-8 pr-3 py-1.5 bg-background border border-border rounded text-sm focus:outline-none focus:ring-1 focus:ring-primary">
-                </div>
+        <aside
+            class="bg-card border-r border-border shrink-0 flex flex-col h-full shadow-lg z-10 relative transition-all duration-300"
+            [ngClass]="toolboxCollapsed() ? 'w-20' : 'w-72'">
+
+            <div class="p-4 border-b border-border flex items-center justify-center"
+                [ngClass]="toolboxCollapsed() ? 'py-4' : 'justify-between'">
+                <h3 class="text-sm font-semibold tracking-wider text-muted-foreground uppercase"
+                    [class.hidden]="toolboxCollapsed()">Librería de Nodos</h3>
+                <h3 class="text-[10px] font-bold tracking-widest text-muted-foreground"
+                    [class.hidden]="!toolboxCollapsed()">CATÁLOGO</h3>
             </div>
 
             <div class="flex-1 overflow-y-auto p-3 space-y-2 NodesList" id="toolboxList">
                 @for (node of nodeTypes; track node.type) {
                 <div draggable="true" (dragstart)="onDragStartToolbox($event, node)"
-                    class="group p-3 border border-border bg-background rounded-lg cursor-grab hover:border-primary/50 transition-colors shadow-sm flex items-start gap-3 relative overflow-hidden">
+                    class="group border border-border bg-background rounded-lg cursor-grab hover:border-primary/50 transition-all shadow-sm flex items-center relative overflow-hidden"
+                    [ngClass]="toolboxCollapsed() ? 'p-2 justify-center' : 'p-3 items-start gap-3'">
                     <div class="w-1 h-full absolute left-0 top-0" [ngClass]="node.color"></div>
-                    <div
-                        class="w-8 h-8 rounded-md bg-secondary flex items-center justify-center shrink-0 ml-1 text-foreground">
+                    <div class="w-8 h-8 rounded-md bg-secondary flex items-center justify-center shrink-0 text-foreground"
+                        [class.ml-1]="!toolboxCollapsed()">
                         <span class="font-bold text-xs" [ngClass]="node.color.replace('bg-', 'text-')">{{ node.label |
                             slice:0:1 }}</span>
                     </div>
-                    <div>
+                    <div [class.hidden]="toolboxCollapsed()">
                         <p class="font-medium text-sm text-foreground group-hover:text-primary transition-colors">{{
                             node.label }}</p>
-                        <p class="text-xs text-muted-foreground line-clamp-1">{{ node.desc }}</p>
+                        <p
+                            class="text-[10px] text-muted-foreground line-clamp-1 uppercase tracking-wider font-semibold">
+                            {{ node.desc }}</p>
                     </div>
                 </div>
                 }
+            </div>
+
+            <div class="px-3 pb-6 border-t border-border pt-4 shrink-0 mt-auto">
+                <button (click)="toolboxCollapsed.set(!toolboxCollapsed())"
+                    class="p-2 hover:bg-accent rounded text-muted-foreground transition-colors w-full flex justify-center">
+                    <svg *ngIf="!toolboxCollapsed()" xmlns="http://www.w3.org/2000/svg" width="18" height="18"
+                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" class="lucide lucide-panel-left-close">
+                        <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+                        <path d="M9 3v18" />
+                        <path d="m16 15-3-3 3-3" />
+                    </svg>
+                    <svg *ngIf="toolboxCollapsed()" xmlns="http://www.w3.org/2000/svg" width="18" height="18"
+                        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" class="lucide lucide-panel-left-open">
+                        <rect width="18" height="18" x="3" y="3" rx="2" ry="2" />
+                        <path d="M9 3v18" />
+                        <path d="m14 9 3 3-3 3" />
+                    </svg>
+                </button>
             </div>
         </aside>
 
         <!-- Center Canvas Area -->
         <main class="flex-1 bg-secondary/30 relative overflow-hidden flex"
+            [style.background-position]="canvasPosition().x + 'px ' + canvasPosition().y + 'px'"
             style="background-image: radial-gradient(var(--border) 1px, transparent 1px); background-size: 20px 20px;">
 
             <!-- Canvas Drop Area -->
-            <div class="w-full h-full relative CanvasArea" (dragover)="onDragOverCanvas($event)"
-                (drop)="onDropCanvas($event)">
+            <div class="w-full h-full relative CanvasArea" [class.cursor-grab]="isSpacePressed() && !isPanning()"
+                [class.cursor-grabbing]="isPanning()" (mousedown)="onCanvasMouseDown($event)"
+                (dragover)="onDragOverCanvas($event)" (drop)="onDropCanvas($event)">
 
-                <!-- SVG Edges Layer -->
-                <svg class="absolute inset-0 w-full h-full pointer-events-none z-0">
-                    @for (edge of edges(); track edge.source + '-' + edge.target) {
-                    <path [attr.d]="getEdgePath(edge)" stroke="var(--primary)" stroke-width="3" fill="none" />
-                    }
-                    @if (drawingEdge()) {
-                    <path [attr.d]="getDrawingPath()" stroke="var(--primary)" stroke-width="3" fill="none"
-                        stroke-dasharray="6,6" class="opacity-80 animate-pulse" />
-                    }
-                </svg>
+                <!-- Transform Container -->
+                <div class="absolute inset-0 origin-top-left"
+                    [style.transform]="'translate(' + canvasPosition().x + 'px, ' + canvasPosition().y + 'px) scale(' + zoomLevel() + ')'"
+                    style="will-change: transform;">
 
-                <!-- Dynamic Nodes -->
-                @for (node of nodes(); track node.id) {
-                <div class="absolute w-56 bg-card border shadow-lg rounded-xl z-10 transition-shadow select-none"
-                    [ngClass]="selectedNode()?.id === node.id ? 'border-primary ring-2 ring-primary/20 scale-[1.02] shadow-xl' : 'border-border hover:shadow-md'"
-                    [style.left.px]="node.position.x" [style.top.px]="node.position.y" cdkDrag
-                    [cdkDragFreeDragPosition]="{x: 0, y: 0}" (cdkDragEnded)="onNodeDragEnd($event, node)"
-                    (click)="selectNode(node)">
+                    <!-- SVG Edges Layer -->
+                    <svg class="absolute inset-0 w-full h-full pointer-events-none z-0 overflow-visible">
+                        @for (edge of edges(); track edge.source + '-' + edge.target) {
+                        <path [attr.d]="getEdgePath(edge)" stroke="var(--primary)" stroke-width="3" fill="none" />
+                        }
+                        @if (drawingEdge()) {
+                        <path [attr.d]="getDrawingPath()" stroke="var(--primary)" stroke-width="3" fill="none"
+                            stroke-dasharray="6,6" class="opacity-80 animate-pulse" />
+                        }
+                    </svg>
 
-                    <!-- Dynamic Top Color -->
-                    <div class="h-1.5 w-full opacity-80 rounded-t-xl" [ngClass]="{
+                    <!-- Dynamic Nodes -->
+                    @for (node of nodes(); track node.id) {
+                    <div class="absolute w-56 bg-card border shadow-lg rounded-xl z-10 transition-shadow select-none"
+                        [ngClass]="selectedNode()?.id === node.id ? 'border-primary ring-2 ring-primary/20 scale-[1.02] shadow-xl' : 'border-border hover:shadow-md'"
+                        [style.left.px]="node.position.x" [style.top.px]="node.position.y" cdkDrag
+                        [cdkDragFreeDragPosition]="{x: 0, y: 0}" (cdkDragEnded)="onNodeDragEnd($event, node)"
+                        (click)="selectNode(node)">
+
+                        <!-- Dynamic Top Color -->
+                        <div class="h-1.5 w-full opacity-80 rounded-t-xl" [ngClass]="{
                             'bg-blue-500': node.type === 'trigger' || node.type === 'input',
                             'bg-purple-500': node.type === 'memory',
                             'bg-rose-500': node.type === 'orchestrator',
@@ -152,26 +178,27 @@
                             'bg-teal-500': node.type === 'tool'
                         }"></div>
 
-                    <div class="p-4 relative">
-                        <!-- Left Handle (Target) -->
-                        @if(node.type !== 'trigger' && node.type !== 'input') {
-                        <div class="absolute w-3.5 h-3.5 rounded-full border-[3px] border-primary bg-background -left-2 top-1/2 -translate-y-1/2 cursor-crosshair z-20 hover:scale-125 transition-all"
-                            (mouseup)="endConnection($event, node)"></div>
-                        }
+                        <div class="p-4 relative">
+                            <!-- Left Handle (Target) -->
+                            @if(node.type !== 'trigger' && node.type !== 'input') {
+                            <div class="absolute w-3.5 h-3.5 rounded-full border-[3px] border-primary bg-background -left-2 top-1/2 -translate-y-1/2 cursor-crosshair z-20 hover:scale-125 transition-all"
+                                (mouseup)="endConnection($event, node)"></div>
+                            }
 
-                        <!-- Right Handle (Source) -->
-                        <div class="absolute w-3.5 h-3.5 rounded-full border-[3px] border-primary bg-background -right-2 top-1/2 -translate-y-1/2 cursor-crosshair z-20 hover:scale-125 transition-transform"
-                            (mousedown)="startConnection($event, node)"></div>
+                            <!-- Right Handle (Source) -->
+                            <div class="absolute w-3.5 h-3.5 rounded-full border-[3px] border-primary bg-background -right-2 top-1/2 -translate-y-1/2 cursor-crosshair z-20 hover:scale-125 transition-transform"
+                                (mousedown)="startConnection($event, node)"></div>
 
-                        <div class="flex items-start justify-between mb-1">
-                            <span class="text-[9px] font-bold tracking-widest uppercase text-muted-foreground">{{
-                                node.type }}</span>
+                            <div class="flex items-start justify-between mb-1">
+                                <span class="text-[9px] font-bold tracking-widest uppercase text-muted-foreground">{{
+                                    node.type }}</span>
+                            </div>
+                            <h4 class="font-bold text-sm text-foreground mb-0.5 truncate">{{ node.data?.label ||
+                                node.data?.name || 'Nodo' }}</h4>
                         </div>
-                        <h4 class="font-bold text-sm text-foreground mb-0.5 truncate">{{ node.data?.label ||
-                            node.data?.name || 'Nodo' }}</h4>
                     </div>
-                </div>
-                }
+                    }
+                </div> <!-- End Transform Container -->
 
                 <!-- Empty State Help (if no nodes) overlayed -->
                 @if (nodes().length === 0) {
@@ -250,33 +277,82 @@
                     </div>
                     }
 
+                    @if(node.type === 'memory') {
+                    <div>
+                        <label class="block text-sm text-foreground mb-1">Estrategia de Búsqueda</label>
+                        <input type="text" value="vector-search" disabled
+                            class="w-full px-3 py-2 bg-secondary/50 border border-border rounded-md text-sm text-muted-foreground focus:outline-none cursor-not-allowed font-mono">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-foreground mb-1">Descripción de la Memoria</label>
+                        <textarea rows="3" [ngModel]="node.data?.description"
+                            (ngModelChange)="updateNodeProperty('description', $event)"
+                            class="w-full px-3 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:border-primary transition-colors resize-y"
+                            placeholder="De qué contexto se encargará esta memoria..."></textarea>
+                    </div>
+                    }
+
                     @if(node.type === 'orchestrator') {
                     <div>
-                        <label class="block text-sm text-foreground mb-1">Prompt de Clasificación</label>
-                        <textarea rows="4"
-                            class="w-full px-3 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:border-primary transition-colors resize-none"
-                            placeholder="Escribe el prompt del sistema aquí..."></textarea>
+                        <label class="block text-sm text-foreground mb-1">Modelo base</label>
+                        <input type="text" value="gpt-4o" disabled
+                            class="w-full px-3 py-2 bg-secondary/50 border border-border rounded-md text-sm text-muted-foreground focus:outline-none cursor-not-allowed mb-4">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-foreground mb-1">Prompt del Sistema</label>
+                        <textarea rows="6" [ngModel]="node.data?.systemPrompt"
+                            (ngModelChange)="updateNodeProperty('systemPrompt', $event)"
+                            class="w-full px-3 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:border-primary transition-colors resize-y"
+                            placeholder="Escribe reglas de clasificación aquí..."></textarea>
+                    </div>
+                    }
+
+                    @if(node.type === 'specialist') {
+                    <div>
+                        <label class="block text-sm text-foreground mb-1">Prompt del Sistema</label>
+                        <textarea rows="6" [ngModel]="node.data?.systemPrompt"
+                            (ngModelChange)="updateNodeProperty('systemPrompt', $event)"
+                            class="w-full px-3 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:border-primary transition-colors resize-y"
+                            placeholder="Escribe instrucciones del especialista aquí..."></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm text-foreground mb-1">Variable de Destino</label>
+                        <input type="text" placeholder="Ej: respuesta_experto" [ngModel]="node.data?.targetVariable"
+                            (ngModelChange)="updateNodeProperty('targetVariable', $event)"
+                            class="w-full px-3 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:border-primary transition-colors font-mono">
                     </div>
                     }
 
                     @if(node.type === 'tool') {
                     <div>
-                        <label class="block text-sm text-foreground mb-1">Archivo Fuente (JSON file)</label>
-                        <select
+                        <label class="block text-sm text-foreground mb-1">Acción (API o Archivo)</label>
+                        <select [ngModel]="node.data?.toolAction"
+                            (ngModelChange)="updateNodeProperty('toolAction', $event)"
                             class="w-full px-3 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:border-primary transition-colors">
-                            <option value="">Selecciona fuente...</option>
+                            <option value="">Selecciona fuente o función...</option>
                             <option value="autos.json">autos.json (Catálogo)</option>
                             <option value="faq.json">faq.json (KB)</option>
                             <option value="dates.json">dates.json (Agenda)</option>
+                            <option value="api_crm">Consultar CRM Externo</option>
                         </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm text-foreground mb-1">Variable de Destino</label>
+                        <input type="text" placeholder="Ej: resultado_api" [ngModel]="node.data?.targetVariable"
+                            (ngModelChange)="updateNodeProperty('targetVariable', $event)"
+                            class="w-full px-3 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:border-primary transition-colors font-mono">
                     </div>
                     }
 
                     @if(node.type === 'validator') {
                     <div>
-                        <label class="block text-sm text-foreground mb-1">Esquema Regex / Regla</label>
-                        <input type="text" placeholder="Ej: ^[0-9]+$"
-                            class="w-full px-3 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:border-primary transition-colors font-mono">
+                        <label class="block text-sm text-foreground mb-1">Campos (Fields)</label>
+                        <textarea rows="3" [ngModel]="getFieldsString(node.data?.fields)"
+                            (ngModelChange)="updateNodeProperty('fields', parseFieldsString($event))"
+                            class="w-full px-3 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:border-primary transition-colors resize-y font-mono"
+                            placeholder="Ej: nombre, presupuesto, modelo"></textarea>
+                        <p class="text-[10px] text-muted-foreground mt-1 text-right">Ingresa valores separados por coma
+                        </p>
                     </div>
                     }
                 </div>

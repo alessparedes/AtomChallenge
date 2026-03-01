@@ -1,4 +1,4 @@
-import { Component, signal, OnInit, inject, HostListener, computed } from '@angular/core';
+import { Component, signal, OnInit, OnDestroy, inject, HostListener, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -26,7 +26,7 @@ export interface FlowEdge {
   templateUrl: './editor.html',
   styleUrl: './editor.scss'
 })
-export class Editor implements OnInit {
+export class Editor implements OnInit, OnDestroy {
   private flowService = inject(FlowService);
   private route = inject(ActivatedRoute);
 
@@ -46,15 +46,31 @@ export class Editor implements OnInit {
     { type: 'tool', label: 'Tool / External', icon: 'code', color: 'bg-teal-500', desc: 'Llamada externa' }
   ];
 
+  toolboxCollapsed = signal<boolean>(false);
+
   // Canvas State
   nodes = signal<FlowNode[]>([]);
   edges = signal<FlowEdge[]>([]);
 
   selectedNode = signal<FlowNode | null>(null);
 
+  // Canvas Viewport State (Pan & Zoom)
+  canvasPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
+  zoomLevel = signal<number>(1);
+  isPanning = signal<boolean>(false);
+  isSpacePressed = signal<boolean>(false);
+
+  private lastMousePos = { x: 0, y: 0 };
+  private panVelocity = { x: 0, y: 0 };
+  private inertiaFrameId: number | null = null;
+
   constructor() { }
 
   ngOnInit() {
+    const viewport = this.flowService.editorViewport();
+    this.canvasPosition.set({ x: viewport.pos.x, y: viewport.pos.y });
+    this.zoomLevel.set(viewport.zoom);
+
     const id = this.route.snapshot.paramMap.get('id');
     this.flowId.set(id);
     if (id) {
@@ -79,6 +95,10 @@ export class Editor implements OnInit {
         error: (err: any) => console.error('Error fetching flow:', err)
       });
     }
+  }
+
+  ngOnDestroy() {
+    this.flowService.editorViewport.set({ pos: this.canvasPosition(), zoom: this.zoomLevel() });
   }
 
   // Edge drawing
@@ -135,8 +155,8 @@ export class Editor implements OnInit {
     const bounds = target.getBoundingClientRect();
 
     const position = {
-      x: event.clientX - bounds.left,
-      y: event.clientY - bounds.top
+      x: (event.clientX - bounds.left - this.canvasPosition().x) / this.zoomLevel(),
+      y: (event.clientY - bounds.top - this.canvasPosition().y) / this.zoomLevel()
     };
 
     // Generate semantic ID like 'node_input_1'
@@ -149,7 +169,6 @@ export class Editor implements OnInit {
       position,
       data: {
         label: 'Nuevo ' + nodeType.label,
-        description: '',
         ...nodeType
       }
     };
@@ -162,8 +181,8 @@ export class Editor implements OnInit {
   onNodeDragEnd(event: CdkDragEnd, node: FlowNode) {
     const delta = event.source.getFreeDragPosition();
     const newPosition = {
-      x: node.position.x + delta.x,
-      y: node.position.y + delta.y
+      x: node.position.x + delta.x / this.zoomLevel(),
+      y: node.position.y + delta.y / this.zoomLevel()
     };
 
     // Reset the internal CDK drag position so it doesn't offset twice on the next drag
@@ -195,19 +214,90 @@ export class Editor implements OnInit {
     const drawing = this.drawingEdge();
     if (drawing) {
       const canvas = document.querySelector('.CanvasArea') as HTMLElement;
-      if (!canvas) return;
-      const bounds = canvas.getBoundingClientRect();
-      this.drawingEdge.set({
-        ...drawing,
-        currentX: event.clientX - bounds.left,
-        currentY: event.clientY - bounds.top
-      });
+      if (canvas) {
+        const bounds = canvas.getBoundingClientRect();
+        this.drawingEdge.set({
+          ...drawing,
+          currentX: (event.clientX - bounds.left - this.canvasPosition().x) / this.zoomLevel(),
+          currentY: (event.clientY - bounds.top - this.canvasPosition().y) / this.zoomLevel()
+        });
+      }
+    }
+
+    if (this.isPanning()) {
+      const dx = (event.clientX - this.lastMousePos.x) / this.zoomLevel();
+      const dy = (event.clientY - this.lastMousePos.y) / this.zoomLevel();
+
+      this.panVelocity = { x: dx, y: dy };
+      this.canvasPosition.update(pos => ({
+        x: pos.x + dx,
+        y: pos.y + dy
+      }));
+      this.lastMousePos = { x: event.clientX, y: event.clientY };
     }
   }
 
   @HostListener('mouseup')
   onMouseUp() {
     this.drawingEdge.set(null);
+    if (this.isPanning()) {
+      this.stopPanning();
+    }
+  }
+
+  // --- Pan & Zoom Logic ---
+  @HostListener('window:keydown.space', ['$event'])
+  onSpaceDown(event: Event) {
+    if (document.activeElement?.tagName === 'INPUT' || document.activeElement?.tagName === 'TEXTAREA') return;
+    this.isSpacePressed.set(true);
+    event.preventDefault();
+  }
+
+  @HostListener('window:keyup.space', ['$event'])
+  onSpaceUp(event: Event) {
+    this.isSpacePressed.set(false);
+    if (this.isPanning()) {
+      this.stopPanning();
+    }
+  }
+
+  onCanvasMouseDown(event: MouseEvent) {
+    const target = event.target as HTMLElement;
+    const isBackground = target.classList.contains('CanvasArea') || target.closest('svg.edges-layer');
+
+    if (event.button === 1 || this.isSpacePressed() || (event.button === 0 && isBackground)) {
+      this.startPanning(event);
+    }
+  }
+
+  private startPanning(event: MouseEvent) {
+    this.isPanning.set(true);
+    this.lastMousePos = { x: event.clientX, y: event.clientY };
+    this.panVelocity = { x: 0, y: 0 };
+    if (this.inertiaFrameId) cancelAnimationFrame(this.inertiaFrameId);
+  }
+
+  private stopPanning() {
+    this.isPanning.set(false);
+    this.applyInertia();
+  }
+
+  private applyInertia() {
+    const friction = 0.92;
+    const step = () => {
+      if (Math.abs(this.panVelocity.x) < 0.5 && Math.abs(this.panVelocity.y) < 0.5) {
+        this.panVelocity = { x: 0, y: 0 };
+        return;
+      }
+      this.canvasPosition.update(pos => ({
+        x: pos.x + this.panVelocity.x,
+        y: pos.y + this.panVelocity.y
+      }));
+      this.panVelocity.x *= friction;
+      this.panVelocity.y *= friction;
+      this.inertiaFrameId = requestAnimationFrame(step);
+    };
+    this.inertiaFrameId = requestAnimationFrame(step);
   }
 
   endConnection(event: MouseEvent, node: FlowNode) {
@@ -248,6 +338,18 @@ export class Editor implements OnInit {
     this.nodes.update(ns => ns.map(n => n.id === current.id ? updated : n));
   }
 
+  // Helpers for Array Fields
+  getFieldsString(fields: any): string {
+    if (Array.isArray(fields)) return fields.join(', ');
+    if (typeof fields === 'string') return fields;
+    return '';
+  }
+
+  parseFieldsString(val: string): string[] {
+    if (!val) return [];
+    return val.split(',').map(s => s.trim()).filter(s => s.length > 0);
+  }
+
   // Real Save to Postgres via API
   saveGraph() {
     const currentId = this.flowId();
@@ -266,6 +368,13 @@ export class Editor implements OnInit {
       },
       data: {
         label: n.data.label,
+        description: n.data.description,
+        systemPrompt: n.data.systemPrompt,
+        targetVariable: n.data.targetVariable,
+        toolAction: n.data.toolAction,
+        validationRegex: n.data.validationRegex,
+        ...(n.type === 'validator' ? { fields: Array.isArray(n.data.fields) ? n.data.fields : [] } : {}),
+        ...(n.type === 'memory' ? { strategy: 'vector-search' } : {}),
         ...(n.data.config || {})
       }
     }));

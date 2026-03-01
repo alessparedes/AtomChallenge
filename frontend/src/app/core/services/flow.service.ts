@@ -13,6 +13,7 @@ export class FlowService {
     // Global Signal State
     public flows = signal<AgentFlow[]>([]);
     public currentFlow = signal<AgentFlow | null>(null);
+    public editorViewport = signal<{ pos: { x: number, y: number }, zoom: number }>({ pos: { x: 0, y: 0 }, zoom: 1 });
 
     constructor(private http: HttpClient) { }
 

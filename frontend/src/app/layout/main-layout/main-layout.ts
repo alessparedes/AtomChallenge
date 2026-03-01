@@ -1,10 +1,11 @@
 import { Component, Inject, PLATFORM_ID, OnInit, signal, effect } from '@angular/core';
-import { RouterOutlet, RouterModule } from '@angular/router';
+import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 
 @Component({
   selector: 'app-main-layout',
-  imports: [RouterOutlet, RouterModule, CommonModule],
+  standalone: true,
+  imports: [CommonModule, RouterOutlet, RouterLink, RouterLinkActive],
   templateUrl: './main-layout.html',
   styleUrl: './main-layout.scss',
 })
