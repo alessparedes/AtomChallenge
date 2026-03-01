@@ -32,15 +32,16 @@ export class FlowService {
 
     // Create empty draft flow
     createFlow(name: string): Observable<AgentFlow> {
-        return this.http.post<AgentFlow>(this.apiUrl, { name }).pipe(
+        return this.http.post<AgentFlow>(this.apiUrl, { name, nodes: [], edges: [] }).pipe(
             tap((newFlow) => this.flows.update(f => [newFlow, ...f]))
         );
     }
 
     // Update flow nodes and edges
-    updateFlowGraph(id: string, name: string, nodes: NodeEntity[], edges: EdgeEntity[]): Observable<AgentFlow> {
+    updateFlowGraph(id: string, name: string, nodes: any[], edges: any[], isActive?: boolean): Observable<AgentFlow> {
         return this.http.patch<AgentFlow>(`${this.apiUrl}/${id}`, {
             name,
+            isActive: isActive ?? true,
             nodes,
             edges
         }).pipe(
