@@ -6,6 +6,7 @@ import { ConversationMemory } from 'src/entities/memory.entity';
 import { NodeEntity } from 'src/entities/node.entity';
 import { Workflow } from 'src/entities/workflow.entity';
 import { NodeType } from 'src/entities/nodetype.entity';
+import { ExecutionLog } from 'src/entities/execution-log.entity';
 
 export const getPostgresConfig = (): TypeOrmModuleOptions => {
     return {
@@ -15,7 +16,7 @@ export const getPostgresConfig = (): TypeOrmModuleOptions => {
         username: envs.PG_USER,
         password: envs.PG_PASSWORD,
         database: envs.PG_DB,
-        entities: [Appointment, EdgeEntity, ConversationMemory, NodeEntity, Workflow, NodeType],
+        entities: [Appointment, EdgeEntity, ConversationMemory, NodeEntity, Workflow, NodeType, ExecutionLog],
         // autoLoadEntities: true,
         synchronize: true,
         // Mostrar consultas SQL

@@ -1,6 +1,5 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { Telegraf } from 'telegraf';
-import { ChatService } from './chat.service';
 import { envs } from 'src/config/envs.conf';
 import TelegramBot from 'node-telegram-bot-api';
 import { WorkflowEngineService } from './workflow-engine.service';
@@ -9,7 +8,7 @@ import { WorkflowEngineService } from './workflow-engine.service';
 export class TelegramService implements OnModuleInit {
     private bot: TelegramBot;
     // ID del flujo que configuraste en tu editor visual
-    private readonly WORKFLOW_ID = '51585965-d486-4e5c-a676-101a9eea233f';
+    private readonly WORKFLOW_ID = 'ae1ea31f-a683-43e7-a618-149b725d190d';
     constructor(private readonly engine: WorkflowEngineService) {
         this.bot = new Telegraf(envs.TELEGRAM_TOKEN);
     }

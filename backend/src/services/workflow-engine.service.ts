@@ -26,83 +26,146 @@ export class WorkflowEngineService {
     }
 
     async executeStep(workflowId: string, userMessage: string, chatId: string) {
-        // 1. Cargamos TODO el flujo desde la DB
+        // 1. Cargar el Grafo (Nodos y Edges)
         const workflow = await this.workflowService.findOne(workflowId);
+        const history = await this.getHistory(chatId);
 
-        // 2. Buscamos el nodo actual (empezando por el Orquestador)
-        const orchestratorNode = workflow.nodes.find(n => n.type === 'orchestrator');
+        // 2. Punto de entrada: Buscamos el nodo tipo 'input'
+        let currentNode = workflow.nodes.find(n => n.type === 'input');
+        let finalResponse = "";
 
-        if (!orchestratorNode) {
-            throw new Error('Orchestrator node not found');
+        if (!currentNode) {
+            throw new Error('Nodo inicial no encontrado');
         }
 
+        //console.log(workflow);
 
-        // 2. Preparamos el contexto de conocimiento (RAG Básico)
-        // Esto inyecta tus JSONs para que la IA los use como "Especialista"
-        const knowledgeContext = `
-    CATALOGO_VEHICULOS: ${JSON.stringify(vehiculosData).replace(/{/g, '{{').replace(/}/g, '}}')}
-    PREGUNTAS_FRECUENTES: ${JSON.stringify(faqData).replace(/{/g, '{{').replace(/}/g, '}}')}
-`;
+        // 3. Recorrido del Grafo basado en Edges
+        while (currentNode) {
+            // Buscamos la conexión (edge) que sale del nodo actual
+            const edge = workflow.edges.find(e => e.source === currentNode?.id);
+            if (!edge) break;
+            console.log("****", edge);
 
+            // Movemos el puntero al siguiente nodo
+            currentNode = workflow.nodes.find(n => n.id === edge.target);
+            console.log("****", currentNode);
+            // --- LÓGICA POR TIPO DE NODO ---
 
-        // 3. Creación del Prompt Dinámico
-        // Combinamos el systemPrompt de la DB con las reglas de negocio y los datos JSON
-        const dynamicPrompt = ChatPromptTemplate.fromMessages([
-            [
-                "system",
-                `${orchestratorNode.data.systemPrompt}
-        
-        ### FUENTE DE DATOS (JSON):
-        ${knowledgeContext}
-        
-        ### REGLAS DE NEGOCIO POR CASO:
-        - Si detectas CASO_GENERAL: Valida antes de responder si es cliente nuevo, asalariado y su edad.
-        - Si detectas CATALOGO: Valida presupuesto, estado (nuevo/usado) y tipo de vehículo.
-        - Si detectas AGENDAMIENTO: Valida nombre, fecha y motivo.
-        
-        Instrucción: Si faltan datos de validación, solicítalos. Si están completos, usa los arreglos de objetos anteriores para dar una respuesta precisa.`
-            ],
+            if (currentNode?.type === 'orchestrator') {
+                // El orquestador decide si falta info o si vamos a una tool
+                finalResponse = await this.runOrchestrator(currentNode, userMessage, history, workflow);
+
+                // Si el orquestador pide datos (Validator), detenemos el ciclo para responder al usuario
+                if (!finalResponse.includes("EJECUTAR_TOOL")) break;
+            }
+
+            if (currentNode?.type === 'specialist' && finalResponse.includes("EJECUTAR_TOOL")) {
+                // Si la IA decidió usar una herramienta, cargamos el JSON dinámicamente
+                const toolData = this.getToolData(currentNode?.data.tool);
+                finalResponse = await this.runSpecialistAI(currentNode, toolData, userMessage, history);
+                break; // El especialista genera la respuesta final
+            }
+
+            if (currentNode?.type === 'log') {
+                await this.writeExecutionLog(workflowId, chatId, currentNode, userMessage, finalResponse);
+                // Después de loguear, buscamos el siguiente nodo si existe
+            }
+        }
+
+        // 4. Persistencia en DB (Memoria + Log)
+        await this.saveHistory(chatId, userMessage, finalResponse);
+        return finalResponse;
+    }
+
+    // --- MÉTODOS DE APOYO ---
+
+    private async runOrchestrator(node: any, input: string, history: any, workflow: any) {
+        // Obtenemos los campos del validador conectado por un edge
+        const validator = workflow.nodes.find(n => n.type === 'validator');
+        const fields = validator?.data.fields.join(", ") || "";
+
+        const prompt = ChatPromptTemplate.fromMessages([
+            ["system", `${node.data.systemPrompt} 
+            REGLA: Valida estos campos: ${fields}. Si están completos, responde 'EJECUTAR_TOOL'.`],
             new MessagesPlaceholder("history"),
-            ["human", "{input}"],
+            ["human", "{input}"]
         ]);
 
-        // 4. Tubería de ejecución
-        const chain = dynamicPrompt.pipe(this.model).pipe(new StringOutputParser());
+        const chain = prompt.pipe(this.model).pipe(new StringOutputParser());
+        return await chain.invoke({ input, history });
+    }
 
-        // 5. Recuperar historial previo (Memoria Persistente +5 pts)
-        const historyMessages = await this.getHistory(chatId);
+    private async runSpecialistAI(node: any, data: any, input: string, history: any) {
+        const prompt = ChatPromptTemplate.fromMessages([
+            ["system", `Eres un especialista. Usa estos datos JSON para responder: ${JSON.stringify(data)}`],
+            new MessagesPlaceholder("history"),
+            ["human", "{input}"]
+        ]);
 
-        // 6. Ejecución de la IA
-        const result = await chain.invoke({
-            input: userMessage,
-            history: historyMessages
-        });
+        const chain = prompt.pipe(this.model).pipe(new StringOutputParser());
+        return await chain.invoke({ input, history });
+    }
 
-        // 7. Guardar en PostgreSQL para persistencia entre sesiones
-        const history = new PostgresChatMessageHistory({
-            tableName: "chat_history",
-            sessionId: chatId,
-            pool: this.pool,
-        });
-
-        await history.addMessage(new HumanMessage(userMessage));
-        await history.addMessage(new AIMessage(result));
-
-        return result;
+    private getToolData(toolName: string) {
+        // Mapeo dinámico de archivos
+        const tools = {
+            'catalogo_autos_api': vehiculosData,
+            'faq_api': faqData
+        };
+        return tools[toolName];
     }
 
     private async getHistory(chatId: string) {
         const history = new PostgresChatMessageHistory({
             tableName: "chat_history",
             sessionId: chatId,
-            pool: this.pool, // El Pool de pg que configuramos antes
+            pool: this.pool
         });
-
-        // Retorna los mensajes en un formato que el MessagesPlaceholder entiende
         return await history.getMessages();
+    }
+
+    private async saveHistory(chatId: string, user: string, ai: string) {
+        const history = new PostgresChatMessageHistory({
+            tableName: "chat_history",
+            sessionId: chatId,
+            pool: this.pool
+        });
+        await history.addMessage(new HumanMessage(user));
+        await history.addMessage(new AIMessage(ai));
     }
 
     async onModuleDestroy() {
         await this.pool.end();
+    }
+
+    private async writeExecutionLog(
+        workflowId: string,
+        chatId: string,
+        node: any,
+        input: string,
+        output: string
+    ) {
+        const query = `
+        INSERT INTO execution_logs 
+        (workflow_id, session_id, node_id, node_type, input_received, output_generated)
+        VALUES ($1, $2, $3, $4, $5, $6)
+    `;
+
+        const values = [
+            workflowId,
+            chatId,
+            node.id,
+            node.type,
+            input,
+            output
+        ];
+
+        try {
+            await this.pool.query(query, values);
+            console.log(`[LOG] Nodo ${node.id} registrado exitosamente para la sesión ${chatId}`);
+        } catch (error) {
+            console.error('Error al escribir en execution_logs:', error);
+        }
     }
 }
