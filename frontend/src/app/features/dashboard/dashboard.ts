@@ -1,9 +1,9 @@
-import { Component, computed, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AgentFlow, FlowStatus } from '../../core/models/flow.model';
-import { MOCK_FLOWS } from '../../core/mocks/mock-flows';
+import { FlowService } from '../../core/services/flow.service';
 
 type FilterType = 'All' | 'Live' | 'Draft' | 'Deployments' | 'Archived';
 
@@ -15,8 +15,11 @@ type FilterType = 'All' | 'Live' | 'Draft' | 'Deployments' | 'Archived';
   styleUrl: './dashboard.scss',
 })
 export class Dashboard {
-  // Signals for state
-  flows = signal<AgentFlow[]>([...MOCK_FLOWS]);
+  private flowService = inject(FlowService);
+  private router = inject(Router);
+
+  // Signals for state - now derived from the FlowService
+  flows = this.flowService.flows;
   searchQuery = signal<string>('');
   viewMode = signal<'grid' | 'list'>('grid');
   currentFilter = signal<FilterType>('All');
@@ -30,7 +33,7 @@ export class Dashboard {
     const query = this.searchQuery().toLowerCase();
     const filter = this.currentFilter();
 
-    return this.flows().filter(flow => {
+    return this.flows().filter((flow: AgentFlow) => {
       // Apply status filter
       if (filter === 'Archived') {
         if (flow.status !== 'Archived') return false;
@@ -48,7 +51,10 @@ export class Dashboard {
     });
   });
 
-  constructor(private router: Router) { }
+  constructor() {
+    // Fetch initial flows from API
+    this.flowService.loadFlows().subscribe();
+  }
 
   // UI Toggles
   setFilter(filter: FilterType) {
@@ -72,18 +78,13 @@ export class Dashboard {
   confirmCreateFlow() {
     const name = this.newFlowName().trim();
     if (name) {
-      const newFlow: AgentFlow = {
-        id: 'flow-' + Date.now(),
-        name,
-        description: 'Nuevo flujo',
-        DateCreate: new Date(),
-        lastModified: new Date(),
-        status: 'Draft'
-      };
-      // Insert in beginning
-      this.flows.update(f => [newFlow, ...f]);
-      this.closeModal();
-      this.openFlow(newFlow.id); // Navigate to editor
+      this.flowService.createFlow(name).subscribe({
+        next: (newFlow: AgentFlow) => {
+          this.closeModal();
+          this.openFlow(newFlow.id); // Navigate to editor with DB id
+        },
+        error: (err: any) => alert('Error creando el flujo: ' + err.message)
+      });
     }
   }
 
@@ -96,37 +97,29 @@ export class Dashboard {
   }
 
   duplicateFlow(id: string) {
+    // Basic duplication for now, could be an API endpoint in the future
     const arr = this.flows();
-    const flow = arr.find(f => f.id === id);
+    const flow = arr.find((f: AgentFlow) => f.id === id);
     if (!flow) return;
 
-    const duplicate: AgentFlow = {
-      ...flow,
-      id: 'flow-' + Date.now(),
-      name: flow.name + ' (Copia)',
-      DateCreate: new Date(),
-      lastModified: new Date(),
-      status: 'Draft',
-      DateDeploy: undefined
-    };
-    this.flows.update(f => [...f, duplicate]);
+    this.flowService.createFlow(`${flow.name} (Copia)`).subscribe();
   }
 
   renameFlow(id: string) {
     const arr = this.flows();
-    const flow = arr.find(f => f.id === id);
+    const flow = arr.find((f: AgentFlow) => f.id === id);
     if (!flow) return;
 
     const newName = window.prompt('Ingresa el nuevo nombre:', flow.name);
-    if (newName && newName.trim()) {
-      this.flows.update(f => f.map(item => item.id === id ? { ...item, name: newName.trim(), lastModified: new Date() } : item));
+    if (newName && newName.trim() && newName.trim() !== flow.name) {
+      this.flowService.updateFlowGraph(id, newName.trim(), flow.nodes, flow.edges).subscribe();
     }
   }
 
   archiveFlow(id: string) {
-    const confirm = window.confirm('¿Estás seguro de que quieres archivar este flujo?');
+    const confirm = window.confirm('¿Estás seguro de que quieres eliminar este flujo permanentemente?');
     if (confirm) {
-      this.flows.update(f => f.map(item => item.id === id ? { ...item, status: 'Archived', lastModified: new Date() } : item));
+      this.flowService.deleteFlow(id).subscribe();
     }
   }
 }

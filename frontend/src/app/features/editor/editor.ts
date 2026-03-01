@@ -1,8 +1,10 @@
-import { Component, signal, OnInit } from '@angular/core';
+import { Component, signal, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { CdkDragDrop, DragDropModule, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
 import { FormsModule } from '@angular/forms';
+import { FlowService } from '../../core/services/flow.service';
+import { AgentFlow, NodeEntity, EdgeEntity } from '../../core/models/flow.model';
 
 export type NodeType = 'trigger' | 'memory' | 'orchestrator' | 'validator' | 'specialist' | 'tool';
 
@@ -24,6 +26,9 @@ export interface WorkflowNode {
   styleUrl: './editor.scss'
 })
 export class Editor implements OnInit {
+  private flowService = inject(FlowService);
+  private route = inject(ActivatedRoute);
+
   // UI State
   flowId = signal<string | null>(null);
   isSaving = signal<boolean>(false);
@@ -47,10 +52,34 @@ export class Editor implements OnInit {
 
   selectedNode = signal<WorkflowNode | null>(null);
 
-  constructor(private route: ActivatedRoute) { }
+  constructor() { }
 
   ngOnInit() {
-    this.flowId.set(this.route.snapshot.paramMap.get('id'));
+    const id = this.route.snapshot.paramMap.get('id');
+    this.flowId.set(id);
+    if (id) {
+      this.flowService.loadFlowById(id).subscribe({
+        next: (flow: AgentFlow | null) => {
+          // Map DB nodes to ui schema
+          if (flow && flow.nodes) {
+            const mappedNodes = flow.nodes.map((n: NodeEntity) => ({
+              id: n.id,
+              type: typeof n.nodeType === 'string' ? n.nodeType as NodeType : (n.nodeType?.typeCode || 'specialist') as NodeType,
+              title: n.config?.title || 'Node',
+              subtitle: n.config?.subtitle || '',
+              x: n.positionX,
+              y: n.positionY,
+              config: n.config
+            }));
+            // Set loaded nodes
+            this.nodes.set(mappedNodes);
+          } else {
+            this.nodes.set([]); // empty canvas
+          }
+        },
+        error: (err: any) => console.error('Error fetching flow:', err)
+      });
+    }
   }
 
   // Drag and Drop (from toolbox to canvas mockup)
@@ -88,13 +117,40 @@ export class Editor implements OnInit {
     this.nodes.update(ns => ns.map(n => n.id === current.id ? updated : n));
   }
 
-  // Mock Save to Postgres via API
+  // Real Save to Postgres via API
   saveGraph() {
+    const currentId = this.flowId();
+    const currentFlow = this.flowService.currentFlow();
+
+    if (!currentId || !currentFlow) return;
+
     this.isSaving.set(true);
-    setTimeout(() => {
-      this.isSaving.set(false);
-      this.lastSaved.set(new Date());
-      // Here usually we'd call FlowService.updateFlow(id, { graphJSON: ... })
-    }, 800);
+
+    // Map Canvas nodes to DTO Nodes
+    const dbNodes: NodeEntity[] = this.nodes().map((n: WorkflowNode) => ({
+      id: n.id,
+      positionX: n.x,
+      positionY: n.y,
+      config: {
+        title: n.title,
+        subtitle: n.subtitle,
+        ...n.config
+      },
+      nodeType: n.type // string mapping for DTO
+    }));
+
+    // Todo: Implement edge mapping when connections are graphically added
+    const dbEdges: EdgeEntity[] = [];
+
+    this.flowService.updateFlowGraph(currentId, currentFlow.name, dbNodes, dbEdges).subscribe({
+      next: () => {
+        this.isSaving.set(false);
+        this.lastSaved.set(new Date());
+      },
+      error: (err: any) => {
+        this.isSaving.set(false);
+        alert('Error guardando en PostgreSQL: ' + err.message);
+      }
+    });
   }
 }

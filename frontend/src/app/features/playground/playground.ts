@@ -1,8 +1,10 @@
-import { Component, signal, effect, ViewChild, ElementRef, OnInit } from '@angular/core';
+import { Component, signal, effect, ViewChild, ElementRef, OnInit, inject } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AgentFlow } from '../../core/models/flow.model';
-import { MOCK_FLOWS } from '../../core/mocks/mock-flows';
+import { FlowService } from '../../core/services/flow.service';
+import { HttpClient } from '@angular/common/http';
+import { environment } from '../../../environments/environment';
 
 interface ChatMessage {
   id: string;
@@ -31,6 +33,10 @@ export class Playground implements OnInit {
   currentInput = signal<string>('');
   isTyping = signal<boolean>(false);
 
+  // Services
+  private flowService = inject(FlowService);
+  private http = inject(HttpClient);
+
   constructor() {
     // Auto-scroll when messages change
     effect(() => {
@@ -40,15 +46,17 @@ export class Playground implements OnInit {
   }
 
   ngOnInit() {
-    // Load published agents
-    const agents = MOCK_FLOWS.filter(f => f.status === 'Published');
-    this.publishedAgents.set(agents);
+    // Load published agents from real API
+    this.flowService.loadFlows().subscribe((flows: AgentFlow[]) => {
+      const activeFlows = flows.filter((f: AgentFlow) => f.isActive);
+      this.publishedAgents.set(activeFlows);
 
-    // Select first by default
-    if (agents.length > 0) {
-      this.selectedAgentId.set(agents[0].id);
-      this.addAgentGreeting(agents[0].name);
-    }
+      // Select first by default
+      if (activeFlows.length > 0) {
+        this.selectedAgentId.set(activeFlows[0].id);
+        this.addAgentGreeting(activeFlows[0].name);
+      }
+    });
   }
 
   onAgentChange(event: Event) {
@@ -89,16 +97,30 @@ export class Playground implements OnInit {
     this.currentInput.set('');
     this.isTyping.set(true);
 
-    // Simulate Agent Delay and Response (using mock logic, later this calls Node.js via API)
-    setTimeout(() => {
-      this.isTyping.set(false);
-      this.messages.update(m => [...m, {
-        id: crypto.randomUUID(),
-        sender: 'agent',
-        text: `Esta es una respuesta simulada del agente ID: ${this.selectedAgentId()}.\n\nTu mensaje original: "${text}"`,
-        timestamp: new Date()
-      }]);
-    }, 1500 + Math.random() * 1000); // random delay 1.5s - 2.5s
+    // Call Telegram NodeJS API passing workflowId
+    this.http.post<{ response: string }>(`${environment.apiUrl}/telegram/${this.selectedAgentId()}`, {
+      sessionId: this.sessionId(),
+      message: text
+    }).subscribe({
+      next: (res: any) => {
+        this.isTyping.set(false);
+        this.messages.update(m => [...m, {
+          id: crypto.randomUUID(),
+          sender: 'agent',
+          text: res?.response || res || 'Sin respuesta del agente.',
+          timestamp: new Date()
+        }]);
+      },
+      error: (err: any) => {
+        this.isTyping.set(false);
+        this.messages.update(m => [...m, {
+          id: crypto.randomUUID(),
+          sender: 'agent',
+          text: `Error de conexión: ${err.message}`,
+          timestamp: new Date()
+        }]);
+      }
+    });
   }
 
   clearChat() {
