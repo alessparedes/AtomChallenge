@@ -66,8 +66,6 @@ export class WorkflowEngineService {
             ["human", "{input}"],
         ]);
 
-        console.log(dynamicPrompt);
-
         // 4. Tubería de ejecución
         const chain = dynamicPrompt.pipe(this.model).pipe(new StringOutputParser());
 
