@@ -377,6 +377,7 @@ export class Editor implements OnInit, OnDestroy {
         targetVariable: n.data.targetVariable,
         toolAction: n.data.toolAction,
         validationRegex: n.data.validationRegex,
+        tool: n.data.tool,
         ...(n.type === 'validator' ? { fields: Array.isArray(n.data.fields) ? n.data.fields : [] } : {}),
         ...(n.type === 'memory' ? { strategy: 'vector-search' } : {}),
         ...(n.data.config || {})

@@ -323,10 +323,13 @@
                             placeholder="Escribe instrucciones del especialista aquí..."></textarea>
                     </div>
                     <div>
-                        <label class="block text-sm text-foreground mb-1">Variable de Destino</label>
-                        <input type="text" placeholder="Ej: respuesta_experto" [ngModel]="node.data?.targetVariable"
-                            (ngModelChange)="updateNodeProperty('targetVariable', $event)"
-                            class="w-full px-3 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:border-primary transition-colors font-mono">
+                        <label class="block text-sm text-foreground mb-1">Acción / Herramienta</label>
+                        <select [ngModel]="node.data?.tool" (ngModelChange)="updateNodeProperty('tool', $event)"
+                            class="w-full px-3 py-2 bg-background border border-border rounded-md text-sm focus:outline-none focus:border-primary transition-colors">
+                            <option value="">Ninguna</option>
+                            <option value="catalogo_autos_api">catalogo_autos_api</option>
+                            <option value="faq_api">faq_api</option>
+                        </select>
                     </div>
                     }
 

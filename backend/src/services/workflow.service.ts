@@ -157,6 +157,16 @@ export class WorkflowService {
         };
     }
 
+    async rename(id: string, name: string) {
+        const workflow = await this.repo.findOne({ where: { id } });
+        if (!workflow) throw new NotFoundException('Workflow no encontrado');
+
+        workflow.name = name;
+        await this.repo.save(workflow);
+
+        return this.findOne(id);
+    }
+
     /**
        * Actualiza un workflow completo: sincroniza nodos y edges.
        */

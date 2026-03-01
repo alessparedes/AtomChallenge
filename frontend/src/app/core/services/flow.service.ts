@@ -48,6 +48,14 @@ export class FlowService {
         );
     }
 
+    renameFlow(id: string, name: string): Observable<AgentFlow> {
+        return this.http.patch<AgentFlow>(`${this.apiUrl}/${id}/rename`, { name }).pipe(
+            tap((renamedFlow) => {
+                this.flows.update(flows => flows.map(f => f.id === id ? renamedFlow : f));
+            })
+        );
+    }
+
     // Update flow nodes and edges
     updateFlowGraph(id: string, name: string, nodes: any[], edges: any[], isActive: boolean = true): Observable<AgentFlow> {
         // We map frontend ui nodes / db nodes into the backend CreateWorkflowDto expected format

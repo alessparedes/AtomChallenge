@@ -109,7 +109,7 @@ export class Dashboard {
 
     const newName = window.prompt('Ingresa el nuevo nombre:', flow.name);
     if (newName && newName.trim() && newName.trim() !== flow.name) {
-      this.flowService.updateFlowGraph(id, newName.trim(), flow.nodes, flow.edges).subscribe();
+      this.flowService.renameFlow(id, newName.trim()).subscribe();
     }
   }
 

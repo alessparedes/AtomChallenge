@@ -26,6 +26,11 @@ export class WorkflowsController {
         return await this.workflowService.duplicate(id);
     }
 
+    @Patch(':id/rename')
+    async rename(@Param('id') id: string, @Body('name') name: string) {
+        return await this.workflowService.rename(id, name);
+    }
+
     @Patch(':id')
     update(
         @Param('id', ParseUUIDPipe) id: string,
