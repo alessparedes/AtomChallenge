@@ -1,0 +1,38 @@
+import { AgentFlow } from '../models/flow.model';
+
+export const MOCK_FLOWS: AgentFlow[] = [
+    {
+        id: 'f1',
+        name: 'Asesor de Ventas - Catálogo',
+        description: 'Agente especializado en buscar y recomendar vehículos del catálogo.',
+        DateCreate: new Date('2026-02-15T10:00:00'),
+        lastModified: new Date('2026-02-28T14:30:00'),
+        status: 'Published',
+        DateDeploy: new Date('2026-02-28T15:00:00')
+    },
+    {
+        id: 'f2',
+        name: 'Soporte General - FAQs',
+        description: 'Agente conversacional que responde dudas generales leyendo faq.json.',
+        DateCreate: new Date('2026-03-01T08:00:00'),
+        lastModified: new Date('2026-03-01T09:15:00'),
+        status: 'Draft'
+    },
+    {
+        id: 'f3',
+        name: 'Gestor de Citas Automotriz',
+        description: 'Programa y verifica slots en dates.json para servicios.',
+        DateCreate: new Date('2026-02-20T11:00:00'),
+        lastModified: new Date('2026-02-25T16:45:00'),
+        status: 'Published',
+        DateDeploy: new Date('2026-02-26T10:00:00')
+    },
+    {
+        id: 'f4',
+        name: 'Test Agent V2',
+        description: 'Agente en pruebas para nuevas validaciones.',
+        DateCreate: new Date('2026-03-01T10:00:00'),
+        lastModified: new Date('2026-03-01T10:30:00'),
+        status: 'Draft'
+    }
+];

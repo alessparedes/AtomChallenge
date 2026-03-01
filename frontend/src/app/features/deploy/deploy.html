@@ -1,0 +1,242 @@
+<div class="h-full flex flex-col p-6 max-w-5xl mx-auto gap-8 animate-in fade-in duration-300">
+
+    <!-- Header -->
+    <div class="flex items-center gap-4">
+        <a routerLink="/dashboard"
+            class="text-muted-foreground hover:text-foreground transition-colors p-2 -ml-2 rounded-md hover:bg-accent">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                class="lucide lucide-arrow-left">
+                <path d="m12 19-7-7 7-7" />
+                <path d="M19 12H5" />
+            </svg>
+        </a>
+        <div>
+            <h2 class="text-3xl font-bold tracking-tight text-foreground flex items-center gap-3">
+                Despliegue del Agente
+                @if(isDeployed()) {
+                <span
+                    class="text-xs px-2.5 py-1 rounded-full font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 uppercase tracking-wider">
+                    Publicado
+                </span>
+                } @else {
+                <span
+                    class="text-xs px-2.5 py-1 rounded-full font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20 uppercase tracking-wider">
+                    Draft
+                </span>
+                }
+            </h2>
+            <p class="text-muted-foreground mt-1">Configura y obtén las credenciales para integrar tu agente en
+                producción.</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+        <!-- Main Left Column -->
+        <div class="lg:col-span-2 space-y-6">
+
+            <!-- Deployment Control Panel -->
+            <section class="bg-card border border-border rounded-xl p-6 shadow-sm relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-full -z-0"></div>
+                <div class="relative z-10">
+                    <h3 class="text-lg font-semibold text-foreground mb-2 flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            class="lucide lucide-rocket text-primary">
+                            <path
+                                d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z" />
+                            <path
+                                d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z" />
+                            <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0" />
+                            <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5" />
+                        </svg>
+                        Estado de Producción
+                    </h3>
+                    <p class="text-sm text-muted-foreground mb-6">Al publicar, los cambios de tu grafo se harán
+                        efectivos inmediatamente para todos los usuarios finales.</p>
+
+                    <div class="flex items-center gap-4">
+                        <button (click)="publishAgent()" [disabled]="isPublishing() || isDeployed()"
+                            class="bg-primary text-primary-foreground px-6 py-2.5 rounded-md font-medium text-sm hover:bg-primary/90 transition-all shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                            @if(isPublishing()) {
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" class="lucide lucide-loader-2 animate-spin">
+                                <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+                            </svg>
+                            Publicando...
+                            } @else if(isDeployed()) {
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" class="lucide lucide-check-circle-2">
+                                <circle cx="12" cy="12" r="10" />
+                                <path d="m9 12 2 2 4-4" />
+                            </svg>
+                            Actualizado
+                            } @else {
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" class="lucide lucide-upload-cloud">
+                                <path d="M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242" />
+                                <path d="M12 12v9" />
+                                <path d="m16 16-4-4-4 4" />
+                            </svg>
+                            Publicar Cambios
+                            }
+                        </button>
+
+                        @if(isDeployed()) {
+                        <a [routerLink]="['/editor', flowId()]"
+                            class="text-sm text-foreground hover:text-primary font-medium flex items-center gap-1 transition-colors">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" class="lucide lucide-pen-line">
+                                <path d="M12 20h9" />
+                                <path
+                                    d="M16.376 3.622a1 1 0 0 1 3.002 3.002L7.368 18.635a2 2 0 0 1-.855.506l-2.872.838a.5.5 0 0 1-.62-.62l.838-2.872a2 2 0 0 1 .506-.854z" />
+                            </svg>
+                            Volver al Editor
+                        </a>
+                        }
+                    </div>
+                </div>
+            </section>
+
+            <!-- Integration Section -->
+            <section class="bg-card border border-border rounded-xl overflow-hidden shadow-sm"
+                [class.opacity-50]="!isDeployed()" [class.pointer-events-none]="!isDeployed()">
+                <div class="border-b border-border p-4 bg-secondary/30">
+                    <h3 class="text-sm text-foreground font-semibold flex items-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            class="lucide lucide-code-2 text-primary">
+                            <path d="m18 16 4-4-4-4" />
+                            <path d="m6 8-4 4 4 4" />
+                            <path d="m14.5 4-5 16" />
+                        </svg>
+                        Snippet de Integración (HTML)
+                    </h3>
+                </div>
+                <div class="p-4 bg-background relative group">
+                    <button (click)="copySnippet()"
+                        class="absolute top-4 right-4 p-2 bg-secondary text-secondary-foreground hover:bg-primary hover:text-primary-foreground rounded-md opacity-0 group-hover:opacity-100 transition-all z-10">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                            class="lucide lucide-copy">
+                            <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+                            <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+                        </svg>
+                    </button>
+                    <pre
+                        class="text-xs text-emerald-400 font-mono overflow-x-auto selection:bg-primary/30"><code>{{ getSnippet() }}</code></pre>
+                </div>
+                <div class="p-4 border-t border-border bg-secondary/10 flex items-center justify-between text-sm">
+                    <span class="text-muted-foreground">Endpoint API Directo:</span>
+                    <code
+                        class="px-2 py-1 bg-background border border-border rounded font-mono text-xs text-foreground">POST /api/v1/execute/{{ agentUUID() || '...' }}</code>
+                </div>
+            </section>
+
+        </div>
+
+        <!-- Right Column (History & Meta) -->
+        <div class="space-y-6">
+
+            <!-- Metadata -->
+            <section class="bg-card border border-border rounded-xl p-5 shadow-sm">
+                <h3 class="font-semibold text-foreground mb-4 text-sm">Detalles del Agente</h3>
+                <ul class="space-y-4 text-sm">
+                    <li>
+                        <span
+                            class="block tracking-wide uppercase text-xs text-muted-foreground mb-1 font-semibold">Agent
+                            ID</span>
+                        <span
+                            class="font-mono text-foreground break-all bg-secondary/50 px-2 py-1 rounded inline-block w-full border border-border/50">{{
+                            agentUUID() || 'Generando...' }}</span>
+                    </li>
+                    <li>
+                        <span
+                            class="block tracking-wide uppercase text-xs text-muted-foreground mb-1 font-semibold">Flujo
+                            Relacionado</span>
+                        <span class="text-foreground flex items-center gap-1.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" class="lucide lucide-folder">
+                                <path
+                                    d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
+                            </svg>
+                            Customer Support Agent
+                        </span>
+                    </li>
+                    <li>
+                        <span
+                            class="block tracking-wide uppercase text-xs text-muted-foreground mb-1 font-semibold">Última
+                            Modificación</span>
+                        <span class="text-foreground flex items-center gap-1.5">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24"
+                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" class="lucide lucide-clock">
+                                <circle cx="12" cy="12" r="10" />
+                                <polyline points="12 6 12 12 16 14" />
+                            </svg>
+                            Hoy a las 14:32 PM
+                        </span>
+                    </li>
+                </ul>
+            </section>
+
+            <!-- History -->
+            <section class="bg-card border border-border rounded-xl p-5 shadow-sm">
+                <h3 class="font-semibold text-foreground mb-4 text-sm flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                        class="lucide lucide-history">
+                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                        <path d="M3 3v5h5" />
+                        <path d="M12 7v5l4 2" />
+                    </svg>
+                    Historial de Producción
+                </h3>
+
+                <div
+                    class="space-y-4 relative before:absolute before:inset-0 before:ml-[9px] before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-border before:to-transparent ml-2">
+
+                    <!-- Timeline Item -->
+                    <div class="relative pl-6">
+                        <div
+                            class="absolute left-0 top-1.5 w-2 h-2 rounded-full bg-emerald-500 ring-4 ring-background z-10">
+                        </div>
+                        <div class="mb-1">
+                            <span class="text-xs font-bold text-foreground">v1.0.3</span>
+                            <span class="text-[10px] text-muted-foreground ml-2">Hace 2 horas</span>
+                        </div>
+                        <p class="text-xs text-muted-foreground">Publicación exitosa por admin.</p>
+                    </div>
+
+                    <div class="relative pl-6">
+                        <div class="absolute left-0 top-1.5 w-2 h-2 rounded-full bg-border ring-4 ring-background z-10">
+                        </div>
+                        <div class="mb-1">
+                            <span class="text-xs font-bold text-foreground">v1.0.2</span>
+                            <span class="text-[10px] text-muted-foreground ml-2">Ayer</span>
+                        </div>
+                        <p class="text-xs text-muted-foreground">Restaurado rollback.</p>
+                    </div>
+
+                    <div class="relative pl-6">
+                        <div class="absolute left-0 top-1.5 w-2 h-2 rounded-full bg-border ring-4 ring-background z-10">
+                        </div>
+                        <div class="mb-1">
+                            <span class="text-xs font-bold text-foreground">v1.0.1</span>
+                            <span class="text-[10px] text-muted-foreground ml-2">Hace 3 días</span>
+                        </div>
+                        <p class="text-xs text-muted-foreground">Actualización de prompt base.</p>
+                    </div>
+
+                </div>
+            </section>
+
+        </div>
+    </div>
+</div>
