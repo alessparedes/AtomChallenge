@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post } from '@nestjs/common';
 import { CreateWorkflowDto } from 'src/dtos/createWorkflow.dto';
 import { WorkflowService } from 'src/services/workflow.service';
 
@@ -14,5 +14,18 @@ export class WorkflowsController {
     @Get(':id')
     async findOne(@Param('id') id: string) {
         return await this.workflowService.findOne(id);
+    }
+
+    @Patch(':id')
+    update(
+        @Param('id', ParseUUIDPipe) id: string,
+        @Body() updateWorkflowDto: CreateWorkflowDto
+    ) {
+        return this.workflowService.update(id, updateWorkflowDto);
+    }
+
+    @Delete(':id')
+    remove(@Param('id', ParseUUIDPipe) id: string) {
+        return this.workflowService.remove(id);
     }
 }

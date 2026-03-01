@@ -1,21 +1,28 @@
 import { Injectable } from '@nestjs/common';
 import * as autos from '../data-json/autos_normalized.json';
-import * as faq from '../data-json/faq.json';
+import * as faqData from '../data-json/faq.json';
 
 @Injectable()
 export class InventoryServiceTsService {
-    // Tool para el Agente Especialista de Catálogo
-    findCars(budget?: number, type?: string) {
-        return autos.filter(car =>
-            (!budget || car.precio <= budget) &&
-            (!type || car.tipo_de_combustible.toLowerCase() === type.toLowerCase())
-        );
+    getFaqResponse(questionId: number): string {
+        // Buscamos en todas las categorías del JSON
+        for (const categoria of faqData) {
+            const preguntaEncontrada = categoria.preguntas.find(p => p.id === questionId);
+
+            if (preguntaEncontrada) {
+                return preguntaEncontrada.respuesta; // Retorna la respuesta real del JSON
+            }
+        }
+
+        return "Lo siento, no encontré una respuesta específica para esa consulta.";
     }
 
-    // Tool para el Agente de Consultas Generales (RAG simple)
-    findFaq(question: string) {
-        // Aquí puedes usar una búsqueda simple por palabras clave 
-        // o comparativa de texto para simular la IA buscando en el manual.
-        return {} // faq.find(f => question.toLowerCase().includes(f.preguntas.toLowerCase()));
+    // Caso de Uso 2: Catálogo de Vehículos
+    async searchCatalog(filters: { maxPrice?: number, segment?: string }) {
+        return autos.filter(carro => {
+            const matchPrice = filters.maxPrice ? carro.precio <= filters.maxPrice : true;
+            const matchSegment = filters.segment ? carro.segmento === filters.segment : true;
+            return matchPrice && matchSegment;
+        });
     }
 }

@@ -35,7 +35,7 @@
     }
 
     &::-webkit-scrollbar-thumb {
-        @apply bg-border/80 rounded-full;
+        @apply bg-border bg-opacity-80 rounded-full;
 
         &:hover {
             @apply bg-muted-foreground;

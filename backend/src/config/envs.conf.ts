@@ -20,6 +20,8 @@ const envsSchema = joi.object({
     PG_USER: joi.string().required(),
     PG_PASSWORD: joi.string().required(),
     PG_DB: joi.string().required(),
+    TELEGRAM_TOKEN: joi.string().required(),
+    OPENAI_API_KEY: joi.string().required(),
 }).unknown().required();
 
 const { error, value } = envsSchema.validate(process.env);
@@ -37,4 +39,6 @@ export const envs = {
     PG_USER: value.PG_USER,
     PG_PASSWORD: value.PG_PASSWORD,
     PG_DB: value.PG_DB,
+    TELEGRAM_TOKEN: value.TELEGRAM_TOKEN,
+    OPENAI_API_KEY: value.OPENAI_API_KEY,
 };

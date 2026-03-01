@@ -6,8 +6,8 @@ module.exports = {
     theme: {
         extend: {
             colors: {
-                border: "var(--border)",
                 input: "var(--input)",
+                border: "hsl(var(--border))",
                 ring: "var(--ring)",
                 background: "var(--background)",
                 foreground: "var(--foreground)",
