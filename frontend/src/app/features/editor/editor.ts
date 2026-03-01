@@ -1,27 +1,31 @@
 import { Component, signal, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import { CdkDragDrop, DragDropModule, moveItemInArray, transferArrayItem } from '@angular/cdk/drag-drop';
 import { FormsModule } from '@angular/forms';
 import { FlowService } from '../../core/services/flow.service';
 import { AgentFlow, NodeEntity, EdgeEntity } from '../../core/models/flow.model';
+import { XYFlowModule } from 'ngx-xyflow';
 
 export type NodeType = 'trigger' | 'memory' | 'orchestrator' | 'validator' | 'specialist' | 'tool';
 
-export interface WorkflowNode {
+export interface FlowNode {
   id: string;
-  type: NodeType;
-  title: string;
-  subtitle?: string;
-  x: number;
-  y: number;
-  config?: any;
+  type?: string;
+  position: { x: number; y: number };
+  data: any;
+}
+
+export interface FlowEdge {
+  id: string;
+  source: string;
+  target: string;
+  type?: string;
 }
 
 @Component({
   selector: 'app-editor',
   standalone: true,
-  imports: [CommonModule, DragDropModule, RouterLink, FormsModule],
+  imports: [CommonModule, RouterLink, FormsModule, XYFlowModule],
   templateUrl: './editor.html',
   styleUrl: './editor.scss'
 })
@@ -45,12 +49,10 @@ export class Editor implements OnInit {
   ];
 
   // Canvas State
-  nodes = signal<WorkflowNode[]>([
-    { id: 'n1', type: 'trigger', title: 'Customer Message', subtitle: 'Ingreso', x: 100, y: 200 },
-    { id: 'n2', type: 'validator', title: 'Schema Validator', subtitle: 'Filtro', x: 450, y: 150 }
-  ]);
+  nodes = signal<FlowNode[]>([]);
+  edges = signal<FlowEdge[]>([]);
 
-  selectedNode = signal<WorkflowNode | null>(null);
+  selectedNode = signal<FlowNode | null>(null);
 
   constructor() { }
 
@@ -64,12 +66,13 @@ export class Editor implements OnInit {
           if (flow && flow.nodes) {
             const mappedNodes = flow.nodes.map((n: NodeEntity) => ({
               id: n.id,
-              type: typeof n.nodeType === 'string' ? n.nodeType as NodeType : (n.nodeType?.typeCode || 'specialist') as NodeType,
-              title: n.config?.title || 'Node',
-              subtitle: n.config?.subtitle || '',
-              x: n.positionX,
-              y: n.positionY,
-              config: n.config
+              type: typeof n.nodeType === 'string' ? n.nodeType : (n.nodeType?.typeCode || 'specialist'),
+              position: { x: n.positionX, y: n.positionY },
+              data: {
+                title: n.config?.title || 'Node',
+                subtitle: n.config?.subtitle || '',
+                config: n.config
+              }
             }));
             // Set loaded nodes
             this.nodes.set(mappedNodes);
@@ -82,35 +85,86 @@ export class Editor implements OnInit {
     }
   }
 
-  // Drag and Drop (from toolbox to canvas mockup)
-  onDrop(event: CdkDragDrop<any>) {
-    // In a real canvas we'd calculate XY coords relative to drop point
-    if (event.previousContainer !== event.container) {
-      const newNodeType = event.previousContainer.data[event.previousIndex];
-      const newNode: WorkflowNode = {
-        id: 'node-' + Date.now(),
-        type: newNodeType.type as NodeType,
-        title: 'New ' + newNodeType.label,
-        x: 300 + (this.nodes().length * 50),
-        y: 200 + (this.nodes().length * 50),
-        config: {}
-      };
-      this.nodes.update(ns => [...ns, newNode]);
-      this.selectNode(newNode);
+  // Native HTML5 Drag & Drop
+  onDragStart(event: DragEvent, nodeType: any) {
+    if (event.dataTransfer) {
+      event.dataTransfer.setData('application/xyflow', JSON.stringify(nodeType));
+      event.dataTransfer.effectAllowed = 'move';
     }
   }
 
+  onDragOver(event: DragEvent) {
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'move';
+    }
+  }
+
+  onDropCanvas(event: DragEvent) {
+    event.preventDefault();
+    if (!event.dataTransfer) return;
+    const nodeTypeStr = event.dataTransfer.getData('application/xyflow');
+    if (!nodeTypeStr) return;
+
+    const nodeType = JSON.parse(nodeTypeStr);
+
+    // Use currentTarget to guarantee we are measuring the Canvas container, not internal SVGs
+    const target = event.currentTarget as HTMLElement;
+    const bounds = target.getBoundingClientRect();
+
+    const position = {
+      x: event.clientX - bounds.left,
+      y: event.clientY - bounds.top
+    };
+
+    const newNode: FlowNode = {
+      id: 'node-' + Date.now(),
+      type: nodeType.type,
+      position,
+      data: {
+        title: 'Nuevo ' + nodeType.label,
+        subtitle: '',
+        ...nodeType
+      }
+    };
+
+    this.nodes.update(ns => [...ns, newNode]);
+    this.selectNode(newNode);
+  }
+
   // Node Selection
-  selectNode(node: WorkflowNode | null) {
+  selectNode(node: FlowNode | null) {
     this.selectedNode.set(node);
   }
 
+  onNodeClick(event: any, node: any) {
+    // Handling ngx-xyflow event pattern
+    this.selectNode(node);
+  }
+
+  onPaneClick() {
+    this.selectNode(null);
+  }
+
+  // Handle Edges Connections
+  onConnect(connection: any) {
+    const newEdge: FlowEdge = {
+      id: `e-${connection.source}-${connection.target}`,
+      source: connection.source,
+      target: connection.target,
+      type: 'default' // Add standard edge type or keep plain
+    };
+
+    this.edges.update(eds => [...eds, newEdge]);
+  }
+
   // Properties Update
-  updateNodeProperty(field: keyof WorkflowNode, value: any) {
+  updateNodeProperty(field: string, value: any) {
     const current = this.selectedNode();
     if (!current) return;
 
-    const updated = { ...current, [field]: value };
+    const updatedData = { ...current.data, [field]: value };
+    const updated = { ...current, data: updatedData };
     this.selectedNode.set(updated);
 
     // Update in canvas
@@ -127,20 +181,25 @@ export class Editor implements OnInit {
     this.isSaving.set(true);
 
     // Map Canvas nodes to DTO Nodes
-    const dbNodes: NodeEntity[] = this.nodes().map((n: WorkflowNode) => ({
-      id: n.id,
-      positionX: n.x,
-      positionY: n.y,
-      config: {
-        title: n.title,
-        subtitle: n.subtitle,
-        ...n.config
+    const dbNodes: any[] = this.nodes().map((n: FlowNode) => ({
+      id: n.id.startsWith('node-') ? undefined : n.id, // backend UUID handling if needed
+      type: n.type,
+      position: {
+        x: n.position.x,
+        y: n.position.y
       },
-      nodeType: n.type // string mapping for DTO
+      data: {
+        title: n.data.title,
+        subtitle: n.data.subtitle,
+        ...(n.data.config || {})
+      }
     }));
 
-    // Todo: Implement edge mapping when connections are graphically added
-    const dbEdges: EdgeEntity[] = [];
+    // Edges mapping
+    const dbEdges: any[] = this.edges().map((e: FlowEdge) => ({
+      source: e.source,
+      target: e.target
+    }));
 
     this.flowService.updateFlowGraph(currentId, currentFlow.name, dbNodes, dbEdges).subscribe({
       next: () => {

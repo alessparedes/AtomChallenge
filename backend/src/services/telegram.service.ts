@@ -34,7 +34,9 @@ export class TelegramService implements OnModuleInit {
             }
         });
 
-        this.bot.launch();
+        this.bot.launch().catch((err) => {
+            console.warn('⚠️ Telegram bot launch failed (likely due to mock/invalid token):', err.message);
+        });
     }
 
     // Este método lo llama el controlador
