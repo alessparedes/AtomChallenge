@@ -85,6 +85,65 @@ export class WorkflowService {
         };
     }
 
+    async duplicate(id: string) {
+        // 1. Fetch original including relations
+        const original = await this.repo.findOne({
+            where: { id },
+            relations: ['nodes', 'nodes.nodeType', 'edges']
+        });
+
+        if (!original) {
+            throw new NotFoundException(`Flujo con id ${id} no encontrado`);
+        }
+
+        // 2. Create the duplicated workflow container
+        const duplicatedWorkflow = this.repo.create({
+            name: `${original.name} (copia)`,
+            isActive: original.isActive
+        });
+        const savedWorkflow = await this.repo.save(duplicatedWorkflow);
+
+        // 3. Generate a safe unique suffix for relations inside this copy
+        const suffix = Date.now().toString().slice(-6);
+
+        // Map original node IDs to new duplicate IDs so edges can still link them together
+        const idMap = new Map<string, string>();
+
+        // 4. Duplicate Nodes
+        if (original.nodes && original.nodes.length > 0) {
+            const duplicatedNodes = original.nodes.map(n => {
+                // n.id is usually Semantic + suffix in DB, e.g. "node_input_1_xxxx"
+                const newId = `${n.id}_copy_${suffix}`;
+                idMap.set(n.id, newId);
+
+                return this.nodeRepo.create({
+                    id: newId,
+                    workflow: savedWorkflow,
+                    nodeType: n.nodeType,
+                    config: n.config,
+                    positionX: n.positionX,
+                    positionY: n.positionY
+                });
+            });
+            await this.nodeRepo.save(duplicatedNodes);
+        }
+
+        // 5. Duplicate Edges maintaining relations
+        if (original.edges && original.edges.length > 0) {
+            const duplicatedEdges = original.edges.map(e => {
+                return this.edgeRepo.create({
+                    workflow: savedWorkflow,
+                    source: idMap.get(e.source) || `${e.source}_copy_${suffix}`,
+                    target: idMap.get(e.target) || `${e.target}_copy_${suffix}`
+                });
+            });
+            await this.edgeRepo.save(duplicatedEdges);
+        }
+
+        // Return the full newly duplicated flow
+        return await this.findOne(savedWorkflow.id);
+    }
+
     async remove(id: string) {
         const workflow = await this.repo.findOne({ where: { id } });
         if (!workflow) throw new NotFoundException('Workflow no encontrado');

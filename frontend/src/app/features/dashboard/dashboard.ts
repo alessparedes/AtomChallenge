@@ -97,12 +97,9 @@ export class Dashboard {
   }
 
   duplicateFlow(id: string) {
-    // Basic duplication for now, could be an API endpoint in the future
-    const arr = this.flows();
-    const flow = arr.find((f: AgentFlow) => f.id === id);
-    if (!flow) return;
-
-    this.flowService.createFlow(`${flow.name} (Copia)`).subscribe();
+    this.flowService.duplicateFlow(id).subscribe({
+      error: (err: any) => alert('Error duplicando el flujo: ' + err.message)
+    });
   }
 
   renameFlow(id: string) {

@@ -21,6 +21,11 @@ export class WorkflowsController {
         return await this.workflowService.findOne(id);
     }
 
+    @Post(':id/duplicate')
+    async duplicate(@Param('id') id: string) {
+        return await this.workflowService.duplicate(id);
+    }
+
     @Patch(':id')
     update(
         @Param('id', ParseUUIDPipe) id: string,

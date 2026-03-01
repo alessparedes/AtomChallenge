@@ -33,19 +33,40 @@ export class FlowService {
 
     // Create empty draft flow
     createFlow(name: string): Observable<AgentFlow> {
-        return this.http.post<AgentFlow>(this.apiUrl, { name, nodes: [], edges: [] }).pipe(
-            tap((newFlow) => this.flows.update(f => [newFlow, ...f]))
+        return this.http.post<AgentFlow>(this.apiUrl, { name }).pipe(
+            tap((newFlow) => {
+                this.flows.update(flows => [...flows, newFlow]);
+            })
+        );
+    }
+
+    duplicateFlow(id: string): Observable<AgentFlow> {
+        return this.http.post<AgentFlow>(`${this.apiUrl}/${id}/duplicate`, {}).pipe(
+            tap((duplicatedFlow) => {
+                this.flows.update(flows => [...flows, duplicatedFlow]);
+            })
         );
     }
 
     // Update flow nodes and edges
-    updateFlowGraph(id: string, name: string, nodes: any[], edges: any[], isActive?: boolean): Observable<AgentFlow> {
-        return this.http.patch<AgentFlow>(`${this.apiUrl}/${id}`, {
+    updateFlowGraph(id: string, name: string, nodes: any[], edges: any[], isActive: boolean = true): Observable<AgentFlow> {
+        // We map frontend ui nodes / db nodes into the backend CreateWorkflowDto expected format
+        const payload = {
             name,
-            isActive: isActive ?? true,
-            nodes,
-            edges
-        }).pipe(
+            isActive,
+            nodes: nodes.map(n => ({
+                id: n.id,
+                type: typeof n.type === 'string' ? n.type : (n.nodeType?.typeCode || n.nodeType || 'specialist'),
+                position: n.position || { x: n.positionX || 0, y: n.positionY || 0 },
+                data: n.data || n.config || {}
+            })),
+            edges: edges.map(e => ({
+                source: e.source,
+                target: e.target
+            }))
+        };
+
+        return this.http.patch<AgentFlow>(`${this.apiUrl}/${id}`, payload).pipe(
             tap((updated) => {
                 this.currentFlow.set(updated);
                 // Also update list if exists
