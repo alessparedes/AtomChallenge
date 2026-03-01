@@ -112,7 +112,7 @@
                         <circle cx="12" cy="12" r="10" />
                         <polyline points="12 6 12 12 16 14" />
                     </svg>
-                    {{ flow.lastModified | date:'shortDate' }}
+                    {{ flow.createdAt | date:'shortDate' }}
                 </div>
                 <span>ID: {{ flow.id.slice(0, 8) }}</span>
             </div>
@@ -230,7 +230,7 @@
                         </span>
                     </td>
                     <td class="py-3 px-4 hidden md:table-cell text-sm text-muted-foreground">
-                        {{ flow.lastModified | date:'mediumDate' }}
+                        {{ flow.createdAt | date:'mediumDate' }}
                     </td>
                     <td class="py-3 px-4 text-right">
                         <div
