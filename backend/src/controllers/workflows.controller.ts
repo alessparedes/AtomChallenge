@@ -11,6 +11,11 @@ export class WorkflowsController {
         return await this.workflowService.create(createWorkflowDto);
     }
 
+    @Get()
+    async findAll() {
+        return await this.workflowService.findAll();
+    }
+
     @Get(':id')
     async findOne(@Param('id') id: string) {
         return await this.workflowService.findOne(id);

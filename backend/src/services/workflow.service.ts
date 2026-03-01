@@ -47,6 +47,13 @@ export class WorkflowService {
         return this.findOne(savedWorkflow.id);
     }
 
+    async findAll() {
+        return await this.repo.find({
+            where: { isActive: true },
+            relations: ['nodes', 'nodes.nodeType', 'edges'],
+        });
+    }
+
     async findOne(id: string) {
         const workflow = await this.repo.findOne({
             where: { id, isActive: true },
