@@ -162,8 +162,16 @@ export class Editor implements OnInit {
 
   // Handle Free Drag within Canvas
   onNodeDragEnd(event: CdkDragEnd, node: FlowNode) {
-    const position = event.source.getFreeDragPosition();
-    this.nodes.update(ns => ns.map(n => n.id === node.id ? { ...n, position } : n));
+    const delta = event.source.getFreeDragPosition();
+    const newPosition = {
+      x: node.position.x + delta.x,
+      y: node.position.y + delta.y
+    };
+
+    // Reset the internal CDK drag position so it doesn't offset twice on the next drag
+    event.source.setFreeDragPosition({ x: 0, y: 0 });
+
+    this.nodes.update(ns => ns.map(n => n.id === node.id ? { ...n, position: newPosition } : n));
   }
 
   // Node Selection
