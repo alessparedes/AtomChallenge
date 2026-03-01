@@ -23,9 +23,11 @@ export class WorkflowService {
             isActive: dto.isActive
         });
         const savedWorkflow = await this.repo.save(newWorkflow);
+
+        const count = await this.repo.count({ where: { isActive: true } });
         // 2. Ahora creamos los nodos asignándoles ese workflowId
         const nodes = dto.nodes.map(n => ({
-            id: n.id, // "node_input_1"
+            id: `${n.id}_${count}`, // "node_input_1"
             workflow: savedWorkflow, // Aquí vinculamos la llave compuesta
             nodeType: { code: n.type },
             config: n.data,
@@ -36,8 +38,8 @@ export class WorkflowService {
         // 3. Mapear Edges vinculándolos al workflow
         const edges = dto.edges.map((e) => ({
             workflow: savedWorkflow,
-            source: e.source,
-            target: e.target,
+            source: `${e.source}_${count}`,
+            target: `${e.target}_${count}`,
         }));
         // 3. Guardamos los nodos (puedes usar el repo de NodeEntity directamente)
         await this.nodeRepo.save(nodes);
@@ -119,12 +121,12 @@ export class WorkflowService {
         // Al usar llaves compuestas, es más seguro resetear el estado del flujo
         await this.nodeRepo.delete({ workflow });
         await this.edgeRepo.delete({ workflow });
-
+        const count = await this.repo.count({ where: { isActive: true } });
         // 4. Mapear los nuevos Nodos
         const newNodes = dto.nodes.map((n) => ({
-            id: n.id,
+            id: `${n.id}_${count}`,
             workflow: updatedWorkflow,
-            typeCode: n.type,
+            nodeType: { code: n.type },
             config: n.data, // Mantenemos el mapeo data -> config
             positionX: n.position.x,
             positionY: n.position.y,
@@ -133,8 +135,8 @@ export class WorkflowService {
         // 5. Mapear los nuevos Edges
         const newEdges = dto.edges.map((e) => ({
             workflow: updatedWorkflow,
-            source: e.source,
-            target: e.target,
+            source: `${e.source}_${count}`,
+            target: `${e.target}_${count}`,
         }));
 
         // 6. Guardar la nueva estructura

@@ -7,7 +7,8 @@ import { PostgresChatMessageHistory } from '@langchain/community/stores/message/
 import { AIMessage, HumanMessage } from 'langchain';
 import { Pool } from 'pg';
 import { envs } from 'src/config/envs.conf';
-
+import * as vehiculosData from '../data-json/autos_normalized.json';
+import * as faqData from '../data-json/faq.json';
 @Injectable()
 export class WorkflowEngineService {
     // Declaramos el modelo (el "this.model" que preguntabas)
@@ -35,31 +36,57 @@ export class WorkflowEngineService {
             throw new Error('Orchestrator node not found');
         }
 
-        console.log(orchestratorNode);
 
-        // 3. CREACIÓN DEL PROMPT DINÁMICO
-        // En lugar de texto fijo, usamos la data que viene de la DB
+        // 2. Preparamos el contexto de conocimiento (RAG Básico)
+        // Esto inyecta tus JSONs para que la IA los use como "Especialista"
+        const knowledgeContext = `
+    CATALOGO_VEHICULOS: ${JSON.stringify(vehiculosData).replace(/{/g, '{{').replace(/}/g, '}}')}
+    PREGUNTAS_FRECUENTES: ${JSON.stringify(faqData).replace(/{/g, '{{').replace(/}/g, '}}')}
+`;
+
+
+        // 3. Creación del Prompt Dinámico
+        // Combinamos el systemPrompt de la DB con las reglas de negocio y los datos JSON
         const dynamicPrompt = ChatPromptTemplate.fromMessages([
-            ["system", orchestratorNode.data.systemPrompt], // <--- Viene de config en DB
+            [
+                "system",
+                `${orchestratorNode.data.systemPrompt}
+        
+        ### FUENTE DE DATOS (JSON):
+        ${knowledgeContext}
+        
+        ### REGLAS DE NEGOCIO POR CASO:
+        - Si detectas CASO_GENERAL: Valida antes de responder si es cliente nuevo, asalariado y su edad.
+        - Si detectas CATALOGO: Valida presupuesto, estado (nuevo/usado) y tipo de vehículo.
+        - Si detectas AGENDAMIENTO: Valida nombre, fecha y motivo.
+        
+        Instrucción: Si faltan datos de validación, solicítalos. Si están completos, usa los arreglos de objetos anteriores para dar una respuesta precisa.`
+            ],
             new MessagesPlaceholder("history"),
             ["human", "{input}"],
         ]);
 
-        // 3. La "Chain" (Tubería de ejecución)
+        console.log(dynamicPrompt);
+
+        // 4. Tubería de ejecución
         const chain = dynamicPrompt.pipe(this.model).pipe(new StringOutputParser());
 
-        // 4. Ejecución con historial persistente en Postgres
+        // 5. Recuperar historial previo (Memoria Persistente +5 pts)
+        const historyMessages = await this.getHistory(chatId);
+
+        // 6. Ejecución de la IA
         const result = await chain.invoke({
             input: userMessage,
-            history: await this.getHistory(chatId) // Recupera contexto previo
+            history: historyMessages
         });
 
-        // 5. GUARDAR el nuevo mensaje en la historia (Importante para que no se pierda)
+        // 7. Guardar en PostgreSQL para persistencia entre sesiones
         const history = new PostgresChatMessageHistory({
             tableName: "chat_history",
             sessionId: chatId,
             pool: this.pool,
         });
+
         await history.addMessage(new HumanMessage(userMessage));
         await history.addMessage(new AIMessage(result));
 
