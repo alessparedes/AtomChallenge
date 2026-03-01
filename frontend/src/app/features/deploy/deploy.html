@@ -51,7 +51,7 @@
                             <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0" />
                             <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5" />
                         </svg>
-                        Estado de Producción
+                        {{ currentFlowName() || 'Estado de Producción' }}
                     </h3>
                     <p class="text-sm text-muted-foreground mb-6">Al publicar, los cambios de tu grafo se harán
                         efectivos inmediatamente para todos los usuarios finales.</p>
@@ -134,7 +134,7 @@
                 <div class="p-4 border-t border-border bg-secondary/10 flex items-center justify-between text-sm">
                     <span class="text-muted-foreground">Endpoint API Directo:</span>
                     <code
-                        class="px-2 py-1 bg-background border border-border rounded font-mono text-xs text-foreground">POST /api/v1/execute/{{ agentUUID() || '...' }}</code>
+                        class="px-2 py-1 bg-background border border-border rounded font-mono text-xs text-foreground">{{ fullEndpoint() }}</code>
                 </div>
             </section>
 

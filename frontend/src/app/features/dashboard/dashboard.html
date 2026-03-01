@@ -86,14 +86,14 @@
             class="group bg-card border border-border rounded-xl p-5 shadow-sm hover:shadow-md hover:border-primary/50 transition-all duration-300 flex flex-col hover:-translate-y-1 cursor-pointer">
             <div class="flex justify-between items-start mb-4">
                 <div class="px-2.5 py-1 rounded-full text-xs font-semibold flex items-center gap-1.5" [ngClass]="{
-                'bg-emerald-500/10 text-emerald-500': flow.status === 'Published',
-                'bg-slate-500/10 text-slate-500': flow.status === 'Draft',
-                'bg-rose-500/10 text-rose-500': flow.status === 'Archived'
+                'bg-emerald-500/10 text-emerald-500': flow.status === 'published',
+                'bg-slate-500/10 text-slate-500': flow.status === 'draft',
+                'bg-rose-500/10 text-rose-500': flow.status === 'archived'
               }">
                     <span class="w-1.5 h-1.5 rounded-full" [ngClass]="{
-                  'bg-emerald-500': flow.status === 'Published',
-                  'bg-slate-500': flow.status === 'Draft',
-                  'bg-rose-500': flow.status === 'Archived'
+                  'bg-emerald-500': flow.status === 'published',
+                  'bg-slate-500': flow.status === 'draft',
+                  'bg-rose-500': flow.status === 'archived'
                 }"></span>
                     {{ flow.status }}
                 </div>
@@ -212,14 +212,14 @@
                     <td class="py-3 px-4 flex items-center gap-2">
                         <span class="px-2 py-1 rounded-full text-xs font-semibold inline-flex items-center gap-1"
                             [ngClass]="{
-                    'bg-emerald-500/10 text-emerald-500': flow.status === 'Published',
-                    'bg-slate-500/10 text-slate-500': flow.status === 'Draft',
-                    'bg-rose-500/10 text-rose-500': flow.status === 'Archived'
+                    'bg-emerald-500/10 text-emerald-500': flow.status === 'published',
+                    'bg-slate-500/10 text-slate-500': flow.status === 'draft',
+                    'bg-rose-500/10 text-rose-500': flow.status === 'archived'
                   }">
                             <span class="w-1.5 h-1.5 rounded-full" [ngClass]="{
-                      'bg-emerald-500': flow.status === 'Published',
-                      'bg-slate-500': flow.status === 'Draft',
-                      'bg-rose-500': flow.status === 'Archived'
+                      'bg-emerald-500': flow.status === 'published',
+                      'bg-slate-500': flow.status === 'draft',
+                      'bg-rose-500': flow.status === 'archived'
                     }"></span>
                             {{ flow.status }}
                         </span>

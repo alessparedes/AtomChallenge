@@ -1,4 +1,4 @@
-export type FlowStatus = 'Draft' | 'Published' | 'Archived';
+export type FlowStatus = 'draft' | 'published' | 'archived';
 
 // Maps exactly to Workflow Entity
 export interface AgentFlow {
@@ -23,7 +23,7 @@ export interface NodeEntity {
     config: any; // JSONB config
     nodeType: {
         typeCode: string;
-    } | string; 
+    } | string;
     // ^ string to easily pass typeCode to DB when creating, 
     // or object when retrieving from relation
 }

@@ -89,4 +89,23 @@ export class FlowService {
             tap(() => this.flows.update(f => f.filter(item => item.id !== id)))
         );
     }
+
+    // NEW: Published flows for Playground
+    loadPublishedFlows(): Observable<AgentFlow[]> {
+        return this.http.get<AgentFlow[]>(`${this.apiUrl}/published`);
+    }
+
+    publishFlow(id: string): Observable<AgentFlow> {
+        return this.http.patch<AgentFlow>(`${this.apiUrl}/${id}/publish`, {}).pipe(
+            tap((updated) => {
+                this.flows.update(f => f.map(item => item.id === id ? updated : item));
+            })
+        );
+    }
+
+    // NEW: Execution in Playground
+    executeFlow(agentId: string, message: string, sessionId?: string): Observable<any> {
+        const executeUrl = `${environment.apiUrl}/execute/${agentId}`;
+        return this.http.post<any>(executeUrl, { message, sessionId });
+    }
 }

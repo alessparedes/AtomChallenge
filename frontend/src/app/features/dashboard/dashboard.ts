@@ -36,12 +36,12 @@ export class Dashboard {
     return this.flows().filter((flow: AgentFlow) => {
       // Apply status filter
       if (filter === 'Archived') {
-        if (flow.status !== 'Archived') return false;
+        if (flow.status !== 'archived') return false;
       } else {
-        if (flow.status === 'Archived') return false; // Hide archived by default
+        if (flow.status === 'archived') return false; // Hide archived by default
 
-        if (filter === 'Draft' && flow.status !== 'Draft') return false;
-        if ((filter === 'Live' || filter === 'Deployments') && flow.status !== 'Published') return false;
+        if (filter === 'Draft' && flow.status !== 'draft') return false;
+        if ((filter === 'Live' || filter === 'Deployments') && flow.status !== 'published') return false;
       }
 
       // Apply search form
