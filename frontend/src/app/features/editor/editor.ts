@@ -325,6 +325,10 @@ export class Editor implements OnInit, OnDestroy {
     }
   }
 
+  deleteEdge(edge: FlowEdge) {
+    this.edges.update(es => es.filter(e => e.source !== edge.source || e.target !== edge.target));
+  }
+
   // Properties Update
   updateNodeProperty(field: string, value: any) {
     const current = this.selectedNode();

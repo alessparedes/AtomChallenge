@@ -152,7 +152,14 @@
                     <!-- SVG Edges Layer -->
                     <svg class="absolute inset-0 w-full h-full pointer-events-none z-0 overflow-visible">
                         @for (edge of edges(); track edge.source + '-' + edge.target) {
-                        <path [attr.d]="getEdgePath(edge)" stroke="var(--primary)" stroke-width="3" fill="none" />
+                        <g class="pointer-events-auto cursor-pointer group"
+                            (dblclick)="$event.stopPropagation(); deleteEdge(edge)">
+                            <!-- Visible line -->
+                            <path [attr.d]="getEdgePath(edge)" stroke="var(--primary)" stroke-width="3" fill="none"
+                                class="group-hover:stroke-destructive transition-colors" />
+                            <!-- Invisible wider clickable area -->
+                            <path [attr.d]="getEdgePath(edge)" stroke="transparent" stroke-width="20" fill="none" />
+                        </g>
                         }
                         @if (drawingEdge()) {
                         <path [attr.d]="getDrawingPath()" stroke="var(--primary)" stroke-width="3" fill="none"
