@@ -118,25 +118,31 @@ export class WorkflowService {
         const updatedWorkflow = await this.repo.save(workflow);
 
         // 3. Limpiar nodos y edges anteriores para evitar duplicados o huérfanos
-        // Al usar llaves compuestas, es más seguro resetear el estado del flujo
-        await this.nodeRepo.delete({ workflow });
-        await this.edgeRepo.delete({ workflow });
-        const count = await this.repo.count({ where: { isActive: true } });
+        await this.nodeRepo.delete({ workflow: { id: workflow.id } });
+        await this.edgeRepo.delete({ workflow: { id: workflow.id } });
+
+        // Generamos un sufijo único de timestamp para que las IDs enviadas desde 
+        // el frontend no colisionen al reinsertarse en esta misma transacción.
+        const suffix = Date.now().toString().slice(-6);
+
         // 4. Mapear los nuevos Nodos
-        const newNodes = dto.nodes.map((n) => ({
-            id: `${n.id}_${count}`,
-            workflow: updatedWorkflow,
-            nodeType: { code: n.type },
-            config: n.data, // Mantenemos el mapeo data -> config
-            positionX: n.position.x,
-            positionY: n.position.y,
-        }));
+        const newNodes = dto.nodes.map((n) => {
+            const nodeId = n.id || `temp_${suffix}_${Math.random()}`;
+            return {
+                id: nodeId.includes('_') ? nodeId : `${nodeId}_${suffix}`,
+                workflow: updatedWorkflow,
+                nodeType: { code: n.type },
+                config: n.data, // Mantenemos el mapeo data -> config
+                positionX: n.position.x,
+                positionY: n.position.y,
+            };
+        });
 
         // 5. Mapear los nuevos Edges
         const newEdges = dto.edges.map((e) => ({
             workflow: updatedWorkflow,
-            source: `${e.source}_${count}`,
-            target: `${e.target}_${count}`,
+            source: e.source.includes('_') ? e.source : `${e.source}_${suffix}`,
+            target: e.target.includes('_') ? e.target : `${e.target}_${suffix}`,
         }));
 
         // 6. Guardar la nueva estructura

@@ -59,23 +59,21 @@ export class Editor implements OnInit {
     this.flowId.set(id);
     if (id) {
       this.flowService.loadFlowById(id).subscribe({
-        next: (flow: AgentFlow | null) => {
+        next: (flow: any) => {
           // Map DB nodes to ui schema
           if (flow && flow.nodes) {
-            const mappedNodes = flow.nodes.map((n: NodeEntity) => ({
+            const mappedNodes = flow.nodes.map((n: any) => ({
               id: n.id,
-              type: typeof n.nodeType === 'string' ? n.nodeType : (n.nodeType?.typeCode || 'specialist'),
-              position: { x: n.positionX, y: n.positionY },
-              data: {
-                label: n.config?.label || 'Node',
-                description: n.config?.description || '',
-                config: n.config
-              }
+              type: n.type || 'specialist',
+              position: n.position || { x: 0, y: 0 },
+              data: n.data || { label: 'Node' }
             }));
             // Set loaded nodes
             this.nodes.set(mappedNodes);
+            this.edges.set(flow.edges || []);
           } else {
             this.nodes.set([]); // empty canvas
+            this.edges.set([]);
           }
         },
         error: (err: any) => console.error('Error fetching flow:', err)
