@@ -1,4 +1,4 @@
-import { Component, signal, effect, ViewChild, ElementRef, OnInit, inject } from '@angular/core';
+import { Component, signal, effect, ViewChild, ElementRef, OnInit, inject, computed } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AgentFlow } from '../../core/models/flow.model';
@@ -28,14 +28,21 @@ export class Playground implements OnInit {
   selectedAgentId = signal<string>('');
   sessionId = signal<string>('session-' + Math.random().toString(36).substr(2, 9));
 
+  selectedAgent = computed(() => {
+    return this.publishedAgents().find(a => a.id === this.selectedAgentId());
+  });
+
   // Chat State
   messages = signal<ChatMessage[]>([]);
   currentInput = signal<string>('');
   isTyping = signal<boolean>(false);
 
+  // Log State
+  executionLogs = signal<string[]>([]);
+  activeTab = signal<'chat' | 'logs'>('chat');
+
   // Services
   private flowService = inject(FlowService);
-  private http = inject(HttpClient);
 
   constructor() {
     // Auto-scroll when messages change
@@ -47,14 +54,13 @@ export class Playground implements OnInit {
 
   ngOnInit() {
     // Load published agents from real API
-    this.flowService.loadFlows().subscribe((flows: AgentFlow[]) => {
-      const activeFlows = flows.filter((f: AgentFlow) => f.isActive);
-      this.publishedAgents.set(activeFlows);
+    this.flowService.loadPublishedFlows().subscribe((flows: AgentFlow[]) => {
+      this.publishedAgents.set(flows);
 
       // Select first by default
-      if (activeFlows.length > 0) {
-        this.selectedAgentId.set(activeFlows[0].id);
-        this.addAgentGreeting(activeFlows[0].name);
+      if (flows.length > 0) {
+        this.selectedAgentId.set(flows[0].id);
+        this.addAgentGreeting(flows[0].name);
       }
     });
   }
@@ -97,26 +103,31 @@ export class Playground implements OnInit {
     this.currentInput.set('');
     this.isTyping.set(true);
 
-    // Call Telegram NodeJS API passing workflowId
-    this.http.post<{ response: string }>(`${environment.apiUrl}/telegram/${this.selectedAgentId()}`, {
-      sessionId: this.sessionId(),
-      message: text
-    }).subscribe({
+    this.flowService.executeFlow(this.selectedAgentId(), text, this.sessionId()).subscribe({
       next: (res: any) => {
         this.isTyping.set(false);
         this.messages.update(m => [...m, {
           id: crypto.randomUUID(),
           sender: 'agent',
-          text: res?.response || res || 'Sin respuesta del agente.',
+          text: res?.response || 'Sin respuesta del agente.',
           timestamp: new Date()
         }]);
+
+        // Accumulate logs
+        if (res.logs && Array.isArray(res.logs)) {
+          this.executionLogs.update(current => [...current, ...res.logs]);
+        }
+
+        if (res.sessionId) {
+          this.sessionId.set(res.sessionId);
+        }
       },
       error: (err: any) => {
         this.isTyping.set(false);
         this.messages.update(m => [...m, {
           id: crypto.randomUUID(),
           sender: 'agent',
-          text: `Error de conexión: ${err.message}`,
+          text: `Error de ejecución: ${err.message}`,
           timestamp: new Date()
         }]);
       }

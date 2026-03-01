@@ -1,6 +1,7 @@
-import { Component, signal, OnInit } from '@angular/core';
+import { Component, signal, OnInit, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
+import { FlowService } from '../../core/services/flow.service';
 
 @Component({
   selector: 'app-deploy',
@@ -11,29 +12,49 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 })
 export class Deploy implements OnInit {
   flowId = signal<string | null>(null);
+  currentFlowName = signal<string>('');
   isPublishing = signal<boolean>(false);
   isDeployed = signal<boolean>(false);
   agentUUID = signal<string>('');
 
-  ngOnInit() {
-    this.flowId.set(this.route.snapshot.paramMap.get('id'));
+  fullEndpoint = computed(() => {
+    return `${window.location.protocol}//${window.location.hostname}:3000/api/v1/execute/${this.agentUUID() || '{agent_id}'}`;
+  });
 
-    // Simulate fetching status
-    setTimeout(() => {
-      // we mock that it's not deployed yet
-      this.agentUUID.set(crypto.randomUUID());
-    }, 500);
+  constructor(
+    private route: ActivatedRoute,
+    private flowService: FlowService
+  ) { }
+
+  ngOnInit() {
+    const id = this.route.snapshot.paramMap.get('id');
+    if (id) {
+      this.flowId.set(id);
+      this.loadAgentDetails(id);
+    }
   }
 
-  constructor(private route: ActivatedRoute) { }
+  loadAgentDetails(id: string) {
+    this.flowService.loadFlowById(id).subscribe((flow: any) => {
+      this.agentUUID.set(flow.id);
+      this.currentFlowName.set(flow.name);
+      this.isDeployed.set(flow.status === 'published');
+    });
+  }
 
   publishAgent() {
+    const id = this.flowId();
+    if (!id) return;
+
     this.isPublishing.set(true);
-    // Simulate API call to publish
-    setTimeout(() => {
-      this.isPublishing.set(false);
-      this.isDeployed.set(true);
-    }, 1500);
+    this.flowService.publishFlow(id).subscribe({
+      next: (updated) => {
+        this.isPublishing.set(false);
+        this.isDeployed.set(true);
+        this.agentUUID.set(updated.id);
+      },
+      error: () => this.isPublishing.set(false)
+    });
   }
 
   copySnippet() {

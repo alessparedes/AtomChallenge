@@ -16,6 +16,11 @@ export class WorkflowsController {
         return await this.workflowService.findAll();
     }
 
+    @Get('published')
+    async getPublished() {
+        return await this.workflowService.getPublished();
+    }
+
     @Get(':id')
     async findOne(@Param('id') id: string) {
         return await this.workflowService.findOne(id);
@@ -29,6 +34,11 @@ export class WorkflowsController {
     @Patch(':id/rename')
     async rename(@Param('id') id: string, @Body('name') name: string) {
         return await this.workflowService.rename(id, name);
+    }
+
+    @Patch(':id/publish')
+    async publish(@Param('id') id: string) {
+        return await this.workflowService.publish(id);
     }
 
     @Patch(':id')

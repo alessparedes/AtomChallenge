@@ -6,14 +6,15 @@ import { NodeEntity } from 'src/entities/node.entity';
 import { NodeType } from 'src/entities/nodetype.entity';
 import { Workflow } from 'src/entities/workflow.entity';
 import { Repository } from 'typeorm';
+import { Deploy } from 'src/entities/deploy.entity';
 
 @Injectable()
 export class WorkflowService {
     constructor(
         @InjectRepository(Workflow) private repo: Repository<Workflow>,
         @InjectRepository(NodeEntity) private nodeRepo: Repository<NodeEntity>,
-        @InjectRepository(EdgeEntity)
-        private readonly edgeRepo: Repository<EdgeEntity>
+        @InjectRepository(EdgeEntity) private edgeRepo: Repository<EdgeEntity>,
+        @InjectRepository(Deploy) private deployRepo: Repository<Deploy>
     ) { }
 
     async create(dto: CreateWorkflowDto) {
@@ -220,5 +221,50 @@ export class WorkflowService {
 
         // Retornamos el workflow actualizado con su nuevo formato
         return this.findOne(updatedWorkflow.id);
+    }
+
+    async getPublished() {
+        const deployments = await this.deployRepo.find({
+            where: { isActive: true },
+            relations: ['workflow']
+        });
+
+        return deployments.map(d => ({
+            id: d.workflow.id,
+            name: d.workflow.name,
+            versionId: d.versionId,
+            deployedAt: d.deployedAt,
+        }));
+    }
+
+    async publish(id: string) {
+        const workflow = await this.repo.findOne({
+            where: { id },
+            relations: ['nodes', 'edges']
+        });
+        if (!workflow) throw new NotFoundException('Workflow no encontrado');
+
+        const versionId = (globalThis as any).crypto?.randomUUID() || `v_${Date.now()}`;
+
+        // Deactivate previous active deployments for this workflow
+        await this.deployRepo.update({ workflowId: id }, { isActive: false });
+
+        // Create new deployment record
+        const deployment = this.deployRepo.create({
+            workflowId: id,
+            versionId,
+            isActive: true,
+            configSnapshot: {
+                nodes: workflow.nodes,
+                edges: workflow.edges
+            }
+        });
+        await this.deployRepo.save(deployment);
+
+        // Also update the main workflow status for the dashboard
+        workflow.status = 'published';
+        await this.repo.save(workflow);
+
+        return this.findOne(id);
     }
 }

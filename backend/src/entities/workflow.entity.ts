@@ -13,6 +13,12 @@ export class Workflow {
     @Column({ default: true })
     isActive: boolean;
 
+    @Column({ default: 'draft' })
+    status: string;
+
+    @Column({ nullable: true })
+    versionId: string;
+
     @CreateDateColumn()
     createdAt: Date;
 
