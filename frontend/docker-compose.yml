@@ -1,0 +1,17 @@
+services:
+  frontend:
+    container_name: atom-frontend
+    networks:
+      - web_network
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      # En Producción: Mapeas al puerto que usará tu Proxy (ej: 8080)
+      # En Local: Mapeas al 4200 o el que gustes
+      - "4200:80" 
+    restart: always
+
+networks:
+  web_network:
+    external: true
