@@ -7,6 +7,9 @@ export class NodeEntity {
     @PrimaryColumn()
     id: string;
 
+    @Column({ name: 'typeCode' })
+    typeCode: string;
+
     @ManyToOne(() => NodeType)
     @JoinColumn({ name: 'typeCode' })
     nodeType: NodeType;

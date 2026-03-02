@@ -35,12 +35,17 @@ export class WorkflowEngineService {
 
         if (deployment?.configSnapshot) {
             logs.push(`[LOG] Usando flujo publicado v${deployment.versionId}`);
-            // Use static snapshot if published
-            nodes = deployment.configSnapshot.nodes.map((n: any) => ({
-                id: n.id,
-                type: n.nodeType?.code || n.type,
-                data: n.config || n.data
-            }));
+            // Determine type: check nodeType.code, explicit type, typeCode column, OR infer from ID
+            nodes = deployment.configSnapshot.nodes.map((n: any) => {
+                const inferredTypeFromId = n.id && n.id.startsWith('node_') ? n.id.split('_')[1] : null;
+                const finalType = n.nodeType?.code || n.type || n.typeCode || (n as any).typeCode || inferredTypeFromId;
+
+                return {
+                    id: n.id,
+                    type: finalType,
+                    data: n.config || n.data
+                };
+            });
             edges = deployment.configSnapshot.edges;
         } else {
             logs.push(`[LOG] No se encontró publicación activa. Usando borrador.`);
@@ -52,13 +57,14 @@ export class WorkflowEngineService {
 
         const history = await this.getHistory(chatId);
 
-        // 2. Entry point: Find 'input' node
-        let currentNode = nodes.find(n => n.type === 'input');
+        // 2. Entry point: Find 'input' or 'trigger' node
+        let currentNode = nodes.find(n => n.type === 'input' || n.type === 'trigger');
         let finalResponse = "";
 
         if (!currentNode) {
-            logs.push(`[ERROR] Nodo de entrada no encontrado`);
-            throw new Error('Nodo inicial no encontrado');
+            const foundTypes = nodes.map(n => n.type).join(', ');
+            logs.push(`[ERROR] Nodo de entrada no encontrado. Tipos detectados: ${foundTypes}`);
+            throw new Error(`Nodo inicial no encontrado (buscaba 'input' o 'trigger'). Detectados: ${foundTypes}`);
         }
         logs.push(`[LOG] Iniciando ejecución desde ${currentNode.id}`);
 

@@ -249,7 +249,7 @@ export class WorkflowService {
     async publish(id: string) {
         const workflow = await this.repo.findOne({
             where: { id },
-            relations: ['nodes', 'edges']
+            relations: ['nodes', 'nodes.nodeType', 'edges']
         });
         if (!workflow) throw new NotFoundException('Workflow no encontrado');
 

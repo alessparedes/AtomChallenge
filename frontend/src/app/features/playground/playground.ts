@@ -23,6 +23,18 @@ interface ChatMessage {
 export class Playground implements OnInit {
   @ViewChild('chatScroll') private chatScrollContainer!: ElementRef;
 
+  // UUID Fallback helper
+  private generateUUID(): string {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  }
+
   // State
   publishedAgents = signal<AgentFlow[]>([]);
   selectedAgentId = signal<string>('');
@@ -80,7 +92,7 @@ export class Playground implements OnInit {
   addAgentGreeting(agentName: string) {
     this.messages.set([
       {
-        id: crypto.randomUUID(),
+        id: this.generateUUID(),
         sender: 'agent',
         text: `Hola, soy tu agente de prueba para "${agentName}". ¿En qué te puedo ayudar hoy?`,
         timestamp: new Date()
@@ -94,7 +106,7 @@ export class Playground implements OnInit {
 
     // Add user message
     this.messages.update(m => [...m, {
-      id: crypto.randomUUID(),
+      id: this.generateUUID(),
       sender: 'user',
       text,
       timestamp: new Date()
@@ -107,7 +119,7 @@ export class Playground implements OnInit {
       next: (res: any) => {
         this.isTyping.set(false);
         this.messages.update(m => [...m, {
-          id: crypto.randomUUID(),
+          id: this.generateUUID(),
           sender: 'agent',
           text: res?.response || 'Sin respuesta del agente.',
           timestamp: new Date()
@@ -125,7 +137,7 @@ export class Playground implements OnInit {
       error: (err: any) => {
         this.isTyping.set(false);
         this.messages.update(m => [...m, {
-          id: crypto.randomUUID(),
+          id: this.generateUUID(),
           sender: 'agent',
           text: `Error de ejecución: ${err.message}`,
           timestamp: new Date()
