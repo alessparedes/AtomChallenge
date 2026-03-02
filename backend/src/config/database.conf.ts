@@ -7,6 +7,8 @@ import { NodeEntity } from 'src/entities/node.entity';
 import { Workflow } from 'src/entities/workflow.entity';
 import { NodeType } from 'src/entities/nodetype.entity';
 import { ExecutionLog } from 'src/entities/execution-log.entity';
+import { Deploy } from 'src/entities/deploy.entity';
+import { Session } from 'src/entities/session.entity';
 
 export const getPostgresConfig = (): TypeOrmModuleOptions => {
     return {
@@ -16,8 +18,8 @@ export const getPostgresConfig = (): TypeOrmModuleOptions => {
         username: envs.PG_USER,
         password: envs.PG_PASSWORD,
         database: envs.PG_DB,
-        entities: [Appointment, EdgeEntity, ConversationMemory, NodeEntity, Workflow, NodeType, ExecutionLog],
-        // autoLoadEntities: true,
+        entities: [Appointment, EdgeEntity, ConversationMemory, NodeEntity, Workflow, NodeType, ExecutionLog, Deploy, Session],
+        autoLoadEntities: true,
         synchronize: true,
         // Mostrar consultas SQL
         // 👇 AGREGA ESTO: AUMENTAR EL POOL

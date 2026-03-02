@@ -14,6 +14,7 @@ export interface AgentFlow {
     DateDeploy?: Date;
     lastModified?: Date;
     description?: string;
+    versionId?: string;
 }
 
 export interface NodeEntity {

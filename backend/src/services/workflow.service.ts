@@ -224,17 +224,26 @@ export class WorkflowService {
     }
 
     async getPublished() {
+        // Query the deploy table directly for active versions
         const deployments = await this.deployRepo.find({
             where: { isActive: true },
-            relations: ['workflow']
+            relations: ['workflow'],
+            order: { deployedAt: 'DESC' }
         });
 
-        return deployments.map(d => ({
-            id: d.workflow.id,
-            name: d.workflow.name,
-            versionId: d.versionId,
-            deployedAt: d.deployedAt,
-        }));
+        console.log(`[DEBUG] getPublished found ${deployments.length} active deployments`);
+
+        // Map to a format the playground understands (basic info)
+        return deployments
+            .filter(d => d.workflow) // Security check
+            .map(d => ({
+                id: d.workflow.id,
+                name: d.workflow.name,
+                versionId: d.versionId,
+                deployedAt: d.deployedAt,
+                // Add status for frontend consistency
+                status: 'published' as any
+            }));
     }
 
     async publish(id: string) {

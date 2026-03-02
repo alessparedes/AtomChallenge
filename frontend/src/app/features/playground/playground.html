@@ -53,7 +53,10 @@
                                 class="w-full pl-3 pr-8 py-2.5 bg-background border-2 border-primary/30 rounded-lg text-sm font-medium focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary appearance-none transition-colors cursor-pointer"
                                 (change)="onAgentChange($event)" [value]="selectedAgentId()">
                                 @for (agent of publishedAgents(); track agent.id) {
-                                <option [value]="agent.id">{{ agent.name }}</option>
+                                <option [value]="agent.id">
+                                    {{ agent.name }} {{ agent.versionId ? '[' + agent.versionId.substring(0,6) + ']' :
+                                    '' }}
+                                </option>
                                 }
                                 @if (publishedAgents().length === 0) {
                                 <option value="" disabled selected>No hay publicos disponibles</option>
