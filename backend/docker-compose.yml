@@ -4,6 +4,8 @@ services:
   postgres:
     image: postgres:15
     container_name: ai_agent_db
+    networks:
+      - web_network
     restart: always
     environment:
       POSTGRES_USER: admin
@@ -14,20 +16,25 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
-  # api:
-  #   build: .
-  #   container_name: ai_agent_api
-  #   restart: always
-  #   ports:
-  #     - "3000:3000"
-  #   depends_on:
-  #     - postgres
-  #   environment:
-  #     DATABASE_HOST: postgres
-  #     DATABASE_PORT: 5432
-  #     DATABASE_USER: admin
-  #     DATABASE_PASSWORD: admin
-  #     DATABASE_NAME: ai_agent
+  api:
+    build: .
+    container_name: ai_agent_api
+    networks:
+      - web_network
+    restart: always
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+    environment:
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_USER: admin
+      DATABASE_PASSWORD: admin
+      DATABASE_NAME: ai_agent
 
 volumes:
   postgres_data:
+networks:
+  web_network:
+    external: true
