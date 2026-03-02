@@ -34,6 +34,14 @@ The platform enables building specialized agents for various use cases such as F
 
 ---
 
+## 📐 Architecture: Metadata-Driven DAG
+
+The core of AtomChallenge follows a **Metadata-Driven Directed Acyclic Graph (DAG)** pattern. 
+
+Unlike traditional builders where logic is hardcoded, this system serializes the visual canvas into a `graph_json` blob. This metadata is then parsed by the backend execution engine to dynamically route user queries through various "Specialist" nodes, maintaining a clear separation between the UI representation and the execution logic.
+
+---
+
 ## 🏗 Project Structure
 
 ```text
