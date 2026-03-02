@@ -9,7 +9,7 @@ services:
     ports:
       # En Producción: Mapeas al puerto que usará tu Proxy (ej: 8080)
       # En Local: Mapeas al 4200 o el que gustes
-      - "4200:80" 
+      - "4300:80" 
     restart: always
 
 networks:
