@@ -23,7 +23,7 @@ services:
       - web_network
     restart: always
     ports:
-      - "3000:3000"
+      - "3020:3000"
     depends_on:
       - postgres
     environment:
