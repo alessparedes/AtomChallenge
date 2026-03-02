@@ -27,83 +27,63 @@ export class WorkflowEngineService {
 
     async executeStep(workflowId: string, userMessage: string, chatId: string) {
         // 1. Check for active deployment (SNAPSHOT)
-        const deployment = await this.workflowService.getActiveDeployment(workflowId);
-        const logs: string[] = [];
+        const workflow = await this.workflowService.findOne(workflowId);
+        let history = await this.getHistory(chatId); // Recupera historial de Postgres
 
-        let nodes: any[] = [];
-        let edges: any[] = [];
-
-        if (deployment?.configSnapshot) {
-            logs.push(`[LOG] Usando flujo publicado v${deployment.versionId}`);
-            // Determine type: check nodeType.code, explicit type, typeCode column, OR infer from ID
-            nodes = deployment.configSnapshot.nodes.map((n: any) => {
-                const inferredTypeFromId = n.id && n.id.startsWith('node_') ? n.id.split('_')[1] : null;
-                const finalType = n.nodeType?.code || n.type || n.typeCode || (n as any).typeCode || inferredTypeFromId;
-
-                return {
-                    id: n.id,
-                    type: finalType,
-                    data: n.config || n.data
-                };
-            });
-            edges = deployment.configSnapshot.edges;
-        } else {
-            logs.push(`[LOG] No se encontró publicación activa. Usando borrador.`);
-            // Fallback to draft
-            const draft = await this.workflowService.findOne(workflowId);
-            nodes = draft.nodes;
-            edges = draft.edges;
-        }
-
-        const history = await this.getHistory(chatId);
-
-        // 2. Entry point: Find 'input' or 'trigger' node
-        let currentNode = nodes.find(n => n.type === 'input' || n.type === 'trigger');
+        // 2. Punto de inicio: Buscamos el nodo tipo 'input'
+        let currentNode = workflow.nodes.find(n => n.type === 'input');
         let finalResponse = "";
-
         if (!currentNode) {
-            const foundTypes = nodes.map(n => n.type).join(', ');
-            logs.push(`[ERROR] Nodo de entrada no encontrado. Tipos detectados: ${foundTypes}`);
-            throw new Error(`Nodo inicial no encontrado (buscaba 'input' o 'trigger'). Detectados: ${foundTypes}`);
+            throw new Error("No se encontró el nodo de inicio");
         }
-        logs.push(`[LOG] Iniciando ejecución desde ${currentNode.id}`);
 
-        // 3. Graph traversal
+        // 3. RECORRIDO DINÁMICO DEL GRAFO
         while (currentNode) {
-            const edge = edges.find(e => e.source === currentNode?.id);
-            if (!edge) break;
+            console.log(`>>> Procesando Nodo: ${currentNode.id} (${currentNode.type})`);
 
-            currentNode = nodes.find(n => n.id === edge.target);
-            logs.push(`[LOG] Avanzando a nodo: ${currentNode?.type} (${currentNode?.id})`);
+            // --- LÓGICA POR TIPO DE NODO ---
 
-            if (currentNode?.type === 'orchestrator') {
-                logs.push(`[LOG] Llamando a Orquestador...`);
-                finalResponse = await this.runOrchestrator(currentNode, userMessage, history, { nodes, edges });
-                logs.push(`[IA] Orquestador respondió: "${finalResponse.slice(0, 50)}..."`);
-                if (!finalResponse.includes("EJECUTAR_TOOL")) break;
+            if (currentNode.type === 'orchestrator') {
+                // El orquestador analiza el historial y decide si avanzar o pedir datos
+                finalResponse = await this.runOrchestrator(currentNode, userMessage, history, workflow);
+
+                // Si el orquestador NO da la señal de "EJECUTAR_TOOL", se detiene para hablar con el usuario
+                if (!finalResponse.includes("EJECUTAR_TOOL")) {
+                    console.log("--- Validación pendiente: Deteniendo flujo para solicitar datos ---");
+                    break;
+                }
             }
 
-            if (currentNode?.type === 'specialist' && finalResponse.includes("EJECUTAR_TOOL")) {
-                const tool = currentNode?.data.tool;
-                logs.push(`[LOG] Ejecutando Especialista con herramienta: ${tool}`);
-                const toolData = this.getToolData(tool);
+            if (currentNode.type === 'specialist' && finalResponse.includes("EJECUTAR_TOOL")) {
+                // El especialista carga el JSON indicado en el nodo (RAG)
+                const toolData = this.getToolData(currentNode.data.tool);
                 finalResponse = await this.runSpecialistAI(currentNode, toolData, userMessage, history);
-                logs.push(`[IA] Especialista respondió: "${finalResponse.slice(0, 50)}..."`);
-                break;
+                console.log("--- Especialista ejecutado con éxito ---");
             }
 
-            if (currentNode?.type === 'log') {
+            if (currentNode.type === 'log') {
+                // Nodo de auditoría usando TypeORM
                 await this.writeExecutionLog(workflowId, chatId, currentNode, userMessage, finalResponse);
             }
+
+            // --- NAVEGACIÓN POR EDGES (EL SALTO) ---
+            // Buscamos la flecha donde el origen sea el nodo actual
+            const nextEdge = workflow.edges.find(edge => edge.source === currentNode?.id);
+
+            if (nextEdge) {
+                // Movemos el puntero al nodo destino de la flecha
+                currentNode = workflow.nodes.find(node => node.id === nextEdge.target);
+            } else {
+                // Si no hay más flechas, terminamos el recorrido
+                currentNode = undefined;
+            }
         }
 
-        // 4. Persistencia en DB (Memoria + Log)
+        // 4. PERSISTENCIA FINAL
+        // Guardamos la interacción en la tabla chat_history para que la memoria sea persistente
         await this.saveHistory(chatId, userMessage, finalResponse);
-        return {
-            response: finalResponse,
-            sessionId: chatId,
-            logs: logs
-        };
+
+        return finalResponse;
     }
 
     // --- MÉTODOS DE APOYO ---
