@@ -3,8 +3,8 @@ import { Workflow } from './workflow.entity';
 
 @Entity('sessions')
 export class Session {
-    @PrimaryGeneratedColumn('uuid')
-    id: string;
+    @PrimaryGeneratedColumn()
+    id: number;
 
     @ManyToOne(() => Workflow)
     workflow: Workflow;

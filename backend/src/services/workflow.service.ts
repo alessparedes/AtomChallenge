@@ -253,7 +253,7 @@ export class WorkflowService {
         });
         if (!workflow) throw new NotFoundException('Workflow no encontrado');
 
-        const versionId = (globalThis as any).crypto?.randomUUID() || `v_${Date.now()}`;
+        const versionId = `v_${Date.now()}_${Math.floor(Math.random() * 1000000)}`;
 
         // Deactivate previous active deployments for this workflow
         await this.deployRepo.update({ workflowId: id }, { isActive: false });

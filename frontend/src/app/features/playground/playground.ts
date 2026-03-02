@@ -23,22 +23,15 @@ interface ChatMessage {
 export class Playground implements OnInit {
   @ViewChild('chatScroll') private chatScrollContainer!: ElementRef;
 
-  // UUID Fallback helper
-  private generateUUID(): string {
-    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-      return crypto.randomUUID();
-    }
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
-      const r = Math.random() * 16 | 0;
-      const v = c === 'x' ? r : (r & 0x3 | 0x8);
-      return v.toString(16);
-    });
+  // Simple ID generator without crypto or dependencies
+  private generateId(): string {
+    return Date.now().toString() + Math.floor(Math.random() * 100000).toString();
   }
 
   // State
   publishedAgents = signal<AgentFlow[]>([]);
   selectedAgentId = signal<string>('');
-  sessionId = signal<string>('session-' + Math.random().toString(36).substr(2, 9));
+  sessionId = signal<string>(this.generateId());
 
   selectedAgent = computed(() => {
     return this.publishedAgents().find(a => a.id === this.selectedAgentId());
@@ -92,7 +85,7 @@ export class Playground implements OnInit {
   addAgentGreeting(agentName: string) {
     this.messages.set([
       {
-        id: this.generateUUID(),
+        id: this.generateId(),
         sender: 'agent',
         text: `Hola, soy tu agente de prueba para "${agentName}". ¿En qué te puedo ayudar hoy?`,
         timestamp: new Date()
@@ -106,7 +99,7 @@ export class Playground implements OnInit {
 
     // Add user message
     this.messages.update(m => [...m, {
-      id: this.generateUUID(),
+      id: this.generateId(),
       sender: 'user',
       text,
       timestamp: new Date()
@@ -119,7 +112,7 @@ export class Playground implements OnInit {
       next: (res: any) => {
         this.isTyping.set(false);
         this.messages.update(m => [...m, {
-          id: this.generateUUID(),
+          id: this.generateId(),
           sender: 'agent',
           text: res?.response || 'Sin respuesta del agente.',
           timestamp: new Date()
@@ -137,7 +130,7 @@ export class Playground implements OnInit {
       error: (err: any) => {
         this.isTyping.set(false);
         this.messages.update(m => [...m, {
-          id: this.generateUUID(),
+          id: this.generateId(),
           sender: 'agent',
           text: `Error de ejecución: ${err.message}`,
           timestamp: new Date()
@@ -148,7 +141,7 @@ export class Playground implements OnInit {
 
   clearChat() {
     this.messages.set([]);
-    this.sessionId.set('session-' + Math.random().toString(36).substr(2, 9));
+    this.sessionId.set(this.generateId());
   }
 
   private scrollToBottom(): void {
