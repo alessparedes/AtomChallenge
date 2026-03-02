@@ -267,4 +267,10 @@ export class WorkflowService {
 
         return this.findOne(id);
     }
+    async getActiveDeployment(workflowId: string) {
+        return await this.deployRepo.findOne({
+            where: { workflowId, isActive: true },
+            relations: ['workflow']
+        });
+    }
 }

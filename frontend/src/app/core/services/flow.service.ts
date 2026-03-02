@@ -105,7 +105,7 @@ export class FlowService {
 
     // NEW: Execution in Playground
     executeFlow(agentId: string, message: string, sessionId?: string): Observable<any> {
-        const executeUrl = `${environment.apiUrl}/execute/${agentId}`;
+        const executeUrl = `${environment.apiUrl}/telegram/${agentId}`;
         return this.http.post<any>(executeUrl, { message, sessionId });
     }
 }

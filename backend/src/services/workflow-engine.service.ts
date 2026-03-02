@@ -26,56 +26,78 @@ export class WorkflowEngineService {
     }
 
     async executeStep(workflowId: string, userMessage: string, chatId: string) {
-        // 1. Cargar el Grafo (Nodos y Edges)
-        const workflow = await this.workflowService.findOne(workflowId);
+        // 1. Check for active deployment (SNAPSHOT)
+        const deployment = await this.workflowService.getActiveDeployment(workflowId);
+        const logs: string[] = [];
+
+        let nodes: any[] = [];
+        let edges: any[] = [];
+
+        if (deployment?.configSnapshot) {
+            logs.push(`[LOG] Usando flujo publicado v${deployment.versionId}`);
+            // Use static snapshot if published
+            nodes = deployment.configSnapshot.nodes.map((n: any) => ({
+                id: n.id,
+                type: n.nodeType?.code || n.type,
+                data: n.config || n.data
+            }));
+            edges = deployment.configSnapshot.edges;
+        } else {
+            logs.push(`[LOG] No se encontró publicación activa. Usando borrador.`);
+            // Fallback to draft
+            const draft = await this.workflowService.findOne(workflowId);
+            nodes = draft.nodes;
+            edges = draft.edges;
+        }
+
         const history = await this.getHistory(chatId);
 
-        // 2. Punto de entrada: Buscamos el nodo tipo 'input'
-        let currentNode = workflow.nodes.find(n => n.type === 'input');
+        // 2. Entry point: Find 'input' node
+        let currentNode = nodes.find(n => n.type === 'input');
         let finalResponse = "";
 
         if (!currentNode) {
+            logs.push(`[ERROR] Nodo de entrada no encontrado`);
             throw new Error('Nodo inicial no encontrado');
         }
+        logs.push(`[LOG] Iniciando ejecución desde ${currentNode.id}`);
 
-        //console.log(workflow);
-
-        // 3. Recorrido del Grafo basado en Edges
+        // 3. Graph traversal
         while (currentNode) {
-            // Buscamos la conexión (edge) que sale del nodo actual
-            const edge = workflow.edges.find(e => e.source === currentNode?.id);
+            const edge = edges.find(e => e.source === currentNode?.id);
             if (!edge) break;
-            console.log("****", edge);
 
-            // Movemos el puntero al siguiente nodo
-            currentNode = workflow.nodes.find(n => n.id === edge.target);
-            console.log("****", currentNode);
-            // --- LÓGICA POR TIPO DE NODO ---
+            currentNode = nodes.find(n => n.id === edge.target);
+            logs.push(`[LOG] Avanzando a nodo: ${currentNode?.type} (${currentNode?.id})`);
 
             if (currentNode?.type === 'orchestrator') {
-                // El orquestador decide si falta info o si vamos a una tool
-                finalResponse = await this.runOrchestrator(currentNode, userMessage, history, workflow);
-
-                // Si el orquestador pide datos (Validator), detenemos el ciclo para responder al usuario
+                logs.push(`[LOG] Llamando a Orquestador...`);
+                finalResponse = await this.runOrchestrator(currentNode, userMessage, history, { nodes, edges });
+                logs.push(`[IA] Orquestador respondió: "${finalResponse.slice(0, 50)}..."`);
                 if (!finalResponse.includes("EJECUTAR_TOOL")) break;
             }
 
             if (currentNode?.type === 'specialist' && finalResponse.includes("EJECUTAR_TOOL")) {
-                // Si la IA decidió usar una herramienta, cargamos el JSON dinámicamente
-                const toolData = this.getToolData(currentNode?.data.tool);
+                const tool = currentNode?.data.tool;
+                logs.push(`[LOG] Ejecutando Especialista con herramienta: ${tool}`);
+                const toolData = this.getToolData(tool);
                 finalResponse = await this.runSpecialistAI(currentNode, toolData, userMessage, history);
-                break; // El especialista genera la respuesta final
+                logs.push(`[IA] Especialista respondió: "${finalResponse.slice(0, 50)}..."`);
+                break;
             }
 
             if (currentNode?.type === 'log') {
                 await this.writeExecutionLog(workflowId, chatId, currentNode, userMessage, finalResponse);
-                // Después de loguear, buscamos el siguiente nodo si existe
             }
         }
 
         // 4. Persistencia en DB (Memoria + Log)
         await this.saveHistory(chatId, userMessage, finalResponse);
-        return finalResponse;
+        return {
+            response: finalResponse,
+            sessionId: chatId,
+            logs: logs
+        };
     }
 
     // --- MÉTODOS DE APOYO ---

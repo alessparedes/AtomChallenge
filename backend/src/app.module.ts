@@ -14,8 +14,6 @@ import { ConversationMemory } from './entities/memory.entity';
 import { TelegramController } from './controllers/telegram.controller';
 import { WorkflowEngineService } from './services/workflow-engine.service';
 import { Session } from './entities/session.entity';
-import { ExecutionController } from './controllers/execution.controller';
-import { ExecutionService } from './services/execution.service';
 import { Deploy } from './entities/deploy.entity';
 
 @Module({
